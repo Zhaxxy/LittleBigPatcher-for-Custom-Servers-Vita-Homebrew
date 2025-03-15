@@ -63,6 +63,15 @@
 #define THREAD_RET_REPATCH_INSTALLED 8
 #define THREAD_RET_REPATCH_INSTALL_FAILED 9
 
+#define THREAD_CURRENT_STATE_CLEANING_WORKSPACE 1
+#define THREAD_CURRENT_STATE_COPYING_FROM_FAGDEC 2
+#define THREAD_CURRENT_STATE_EBOOT_DECRYPT 3
+#define THREAD_CURRENT_STATE_START_PATCHING 4
+#define THREAD_CURRENT_STATE_DONE_PATCHING 5
+#define THREAD_CURRENT_STATE_EBOOT_ENCRYPT 6
+#define THREAD_CURRENT_STATE_MAKE_REPATCH_FOLDERS 7
+#define THREAD_CURRENT_STATE_FINAL_COPY_EBOOT_TO_REPATCH 8
+
 #define ERROR_YET_TO_PRESS_OK_SUCCESS 2
 #define ERROR_YET_TO_PRESS_OK_FAIL 1
 
@@ -264,13 +273,13 @@ bool is_a_url_selected() {
 int title_id_exists(char * title_id)
 {
 	char fname[sizeof("ux0:/FAGDec/patch/ABCD12345/eboot.bin")];
-	sprintf(fname,"ux0:/FAGDec/patch/%s/eboot.bin",title_id); // assumes that title_id is of length 9
+	sprintf(fname,"ux0:/FAGDec/patch/%s/eboot.bin",title_id); // assumes that title_id is of lenght 9
 	
 	if (does_file_exist(fname)) {
 		return TITLE_ID_PATCH;
 	}
 	
-	sprintf(fname,"ux0:/FAGDec/app/%s/eboot.bin",title_id); // assumes that title_id is of length 9
+	sprintf(fname,"ux0:/FAGDec/app/%s/eboot.bin",title_id); // assumes that title_id is of lenght 9
 
 	if (does_file_exist(fname)) {
 		return TITLE_ID_APP;
@@ -818,6 +827,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	}
 
 	// ensure working from clean state
+	args->current_state = THREAD_CURRENT_STATE_CLEANING_WORKSPACE;
 	sceClibPrintf("Cleaning workspace\n");
 	remove(WORKING_DIR "eboot.bin.elf");
 	remove(WORKING_DIR "eboot.bin");
@@ -827,7 +837,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
 		return THREAD_RET_EBOOT_BACKUP_FAILED;
 	}
-	
+	args->current_state = THREAD_CURRENT_STATE_COPYING_FROM_FAGDEC;
 	sceClibPrintf("Copying FAGDec eboot to workspace\n");
 	copy_file_res = copy_file(WORKING_DIR "eboot.bin",fagdec_eboot);
 	
@@ -842,6 +852,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
 		return THREAD_RET_EBOOT_BACKUP_FAILED;
 	}
+	args->current_state = THREAD_CURRENT_STATE_EBOOT_DECRYPT;
 	sceClibPrintf("Decrypting/decompressing eboot.bin with vita-unmake-fself\n");
 	unmake_fself_res = unmake_fself(WORKING_DIR "eboot.bin",WORKING_DIR "eboot.bin.elf");
 	
@@ -856,9 +867,10 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		sceKernelExitThread(THREAD_RET_EBOOT_DECRYPT_FAILED);
 		return THREAD_RET_EBOOT_DECRYPT_FAILED;
 	}
-	
+	args->current_state = THREAD_CURRENT_STATE_START_PATCHING;
 	sceClibPrintf("start patching\n");
 	patch_res = args->patch_func(WORKING_DIR "eboot.bin.elf",my_url.url,my_url.digest,args->normalise_digest);
+	args->current_state = THREAD_CURRENT_STATE_DONE_PATCHING;
 	sceClibPrintf("done patching\n");
 
 	if (patch_res != 0 ) {
@@ -867,7 +879,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		return THREAD_RET_EBOOT_PATCH_FAILED;
 	}
 
-
+	args->current_state = THREAD_CURRENT_STATE_EBOOT_ENCRYPT;
 	sceClibPrintf("Encrypting eboot.bin (elf inject to working eboot.bin)\n");
 	unmake_fself_res = elf_inject(WORKING_DIR "eboot.bin.elf",WORKING_DIR "eboot.bin");
 	
@@ -876,14 +888,14 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		sceKernelExitThread(THREAD_RET_EBOOT_DECRYPT_FAILED);
 		return THREAD_RET_EBOOT_DECRYPT_FAILED;
 	}
-	
+	args->current_state = THREAD_CURRENT_STATE_MAKE_REPATCH_FOLDERS;
 	sceClibPrintf("Making rePatch folders if not exist\n");
 	
 	
 	
 	mkdir("ux0:/rePatch/", 0777);
 	mkdir(repatch_title_id_folder, 0777);
-	
+	args->current_state = THREAD_CURRENT_STATE_FINAL_COPY_EBOOT_TO_REPATCH;
 	sceClibPrintf("Finally, copying new working eboot.bin to rePatch folder\n");
 	copy_file_res = copy_file(repatch_eboot_bin_path,WORKING_DIR "eboot.bin");
 	
@@ -943,7 +955,7 @@ int vita2d_font_draw_textf_with_bg(vita2d_font *font,u32 colour, u32 bg_colour,i
 #define SetFontColor(font_colour_in,bg_colour_in) bg_colour = bg_colour_in; font_colour = font_colour_in
 
 #define GetFontX() global_current_x
-void draw_scene(vita2d_font *font, u8 current_menu,int menu_arrow, bool is_alive_toggle_thing, u8 error_yet_to_press_ok, char* error_msg, int yes_no_game_popup, int started_a_thread,
+void draw_scene(vita2d_font *font, u8 current_menu,int menu_arrow, bool is_alive_toggle_thing, u8 error_yet_to_press_ok, char* error_msg, int yes_no_game_popup, int started_a_thread, int thread_current_state,
 u8 saved_urls_txt_num, bool normalise_digest_checked, 
 struct TitleIdAndGameName browse_games_buffer[], u32 browse_games_buffer_size, u32 browse_games_buffer_start,
 char * global_title_id, int global_title_id_folder_type
@@ -984,6 +996,50 @@ char * global_title_id, int global_title_id_folder_type
 				break;
 			case YES_NO_GAME_POPUP_PATCH_GAME:
 				DrawFormatString(x,y,"Applying patches to your game. Please wait...");
+				y += CHARACTER_HEIGHT;
+				bg_colour = TITLE_BG_COLOUR;
+				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+
+				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_CLEANING_WORKSPACE) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
+				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+				DrawString(x, y, "Cleaning workspace");
+				y += CHARACTER_HEIGHT;
+				
+				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_COPYING_FROM_FAGDEC) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
+				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+				DrawString(x, y, "Copying eboot.bin from FAGDec to workspace");
+				y += CHARACTER_HEIGHT;
+				
+				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_EBOOT_DECRYPT) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
+				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+				DrawString(x, y, "Decrypting/decompressing eboot.bin in workspace");
+				y += CHARACTER_HEIGHT;
+				
+				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_START_PATCHING) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
+				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+				DrawString(x, y, "Patching eboot.bin.elf");
+				y += CHARACTER_HEIGHT;
+				
+				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_DONE_PATCHING) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
+				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+				DrawString(x, y, "Done patching eboot.bin.elf");
+				y += CHARACTER_HEIGHT;
+				
+				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_EBOOT_ENCRYPT) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
+				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+				DrawString(x, y, "Encrypting eboot.bin.elf to workspace eboot.bin");
+				y += CHARACTER_HEIGHT;
+				
+				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_MAKE_REPATCH_FOLDERS) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
+				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+				DrawString(x, y, "Creating rePatch folders if not exist");
+				y += CHARACTER_HEIGHT;
+				
+				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_FINAL_COPY_EBOOT_TO_REPATCH) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
+				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+				DrawString(x, y, "Copying eboot.bin from workspace to rePatch folder");
+				y += CHARACTER_HEIGHT;
+
 				break;
 			case YES_NO_GAME_POPUP_INSTALL_REPATCH:
 				DrawFormatString(x,y,"Installing repatch_ex.skprx. Please wait...");
@@ -1235,6 +1291,7 @@ int main(int argc, char *argv[]) {
 
 	// init the global second_thread_args
 	second_thread_args.has_finished = 0;
+	second_thread_args.current_state = 0;
 	second_thread_args.normalise_digest = 1;
 	second_thread_args.remove_allefresher = 0;
 	second_thread_args.patch_func = &patch_eboot_elf_main_series;
@@ -1726,7 +1783,7 @@ int main(int argc, char *argv[]) {
 		draw_scene_direct:
 		old_btn = my_btn;
 		draw_scene(font,current_menu,menu_arrow,is_alive_toggle_thing,error_yet_to_press_ok,error_msg,yes_no_game_popup,
-		started_a_thread,saved_urls_txt_num,second_thread_args.normalise_digest,
+		started_a_thread,second_thread_args.current_state,saved_urls_txt_num,second_thread_args.normalise_digest,
 		browse_games_buffer,browse_games_buffer_size,browse_games_buffer_start,global_title_id,global_title_id_folder_type
 		);
 		is_alive_toggle_thing = !is_alive_toggle_thing;

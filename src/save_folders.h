@@ -1,7 +1,7 @@
 #ifndef SAVE_FOLDERS_H_   /* Include guard */
 #define SAVE_FOLDERS_H_
 
-#define VERSION_NUM_STR "v2.000"
+#define VERSION_NUM_STR "v2.001"
 
 #define ROOT_DIR "ux0:/data/lbpatcher_stuff/"
 #define WORKING_DIR ROOT_DIR "temp_files/"

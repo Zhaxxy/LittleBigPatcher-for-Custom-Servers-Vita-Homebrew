@@ -264,13 +264,13 @@ bool is_a_url_selected() {
 int title_id_exists(char * title_id)
 {
 	char fname[sizeof("ux0:/FAGDec/patch/ABCD12345/eboot.bin")];
-	sprintf(fname,"ux0:/FAGDec/patch/%s/eboot.bin",title_id); // assumes that title_id is of lenght 9
+	sprintf(fname,"ux0:/FAGDec/patch/%s/eboot.bin",title_id); // assumes that title_id is of length 9
 	
 	if (does_file_exist(fname)) {
 		return TITLE_ID_PATCH;
 	}
 	
-	sprintf(fname,"ux0:/FAGDec/app/%s/eboot.bin",title_id); // assumes that title_id is of lenght 9
+	sprintf(fname,"ux0:/FAGDec/app/%s/eboot.bin",title_id); // assumes that title_id is of length 9
 
 	if (does_file_exist(fname)) {
 		return TITLE_ID_APP;

@@ -1,0 +1,1740 @@
+#include <psp2/kernel/threadmgr.h>
+#include <psp2/kernel/processmgr.h>
+#include <stdio.h>
+#include <string.h>
+#include <psp2/ctrl.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <stdlib.h>
+#include <psp2/power.h> // for scePowerRequestColdReset
+#include <psp2/shellutil.h>  // for sceShellUtilLock
+#include <psp2/apputil.h>  // for sceAppUtilReceiveAppEvent and SceAppUtilAppEventParam
+
+#include <psp2/kernel/clib.h> // for sceClibPrintf
+
+#include <assert.h>
+
+#include <stdarg.h>
+#include <vita2d.h>
+
+#include "types_for_my_patcher_app.h"
+
+#include "NotoSans_Regular_ttf.h"
+#include "text_input_vita.h"
+#include "save_folders.h"
+#include "colours_config.h"
+#include "patching_eboot_elf_code.h"
+#include "for_elfinject_globals.h"
+#include "read_sfo.h"
+#include "copyfile_thing.h"
+#include "vita-unmake-fself/vita_unmake_fself.h"
+#include "elf_injector/elf_inject.h"
+
+#define BTN_LEFT       SCE_CTRL_LEFT
+#define BTN_DOWN       SCE_CTRL_DOWN
+#define BTN_RIGHT      SCE_CTRL_RIGHT
+#define BTN_UP         SCE_CTRL_UP
+#define BTN_START      SCE_CTRL_START
+#define BTN_R3         SCE_CTRL_R3
+#define BTN_L3         SCE_CTRL_L3
+#define BTN_SELECT     SCE_CTRL_SELECT  
+#define BTN_SQUARE     SCE_CTRL_SQUARE
+#define BTN_CROSS      SCE_CTRL_CROSS
+#define BTN_CIRCLE     SCE_CTRL_CIRCLE
+#define BTN_TRIANGLE   SCE_CTRL_TRIANGLE
+#define BTN_R1         SCE_CTRL_R1
+#define BTN_L1         SCE_CTRL_L1
+#define BTN_R2         SCE_CTRL_R2
+#define BTN_L2         SCE_CTRL_L2
+
+#define MAX_LINE_LEN_OF_URL_ENTRY MAX_URL_LEN_INCL_NULL - 1 + MAX_DIGEST_LEN_INCL_NULL - 1 + sizeof(" ")
+
+#define SECOND_THREAD_NAME "second_thread"
+#define SECOND_THREAD_PRIORITY 0x10000100 // 0 means highest, value from sample
+#define SECOND_THREAD_STACK_SIZE 0x500000 // 5mb
+
+#define THREAD_RET_EBOOT_REVERTED 3
+#define THREAD_RET_EBOOT_BAK_NO_EXIST 4
+#define THREAD_RET_EBOOT_DECRYPT_FAILED 1
+#define THREAD_RET_EBOOT_PATCH_FAILED 5
+#define THREAD_RET_EBOOT_PATCHED 6
+#define THREAD_RET_EBOOT_BACKUP_FAILED 7
+#define THREAD_RET_REPATCH_INSTALLED 8
+#define THREAD_RET_REPATCH_INSTALL_FAILED 9
+
+#define ERROR_YET_TO_PRESS_OK_SUCCESS 2
+#define ERROR_YET_TO_PRESS_OK_FAIL 1
+
+#define MENU_MAIN 0
+#define MENU_MAIN_ARROW 4-1
+
+#define MENU_SELECT_URLS 1
+#define MENU_SELECT_URLS_ARROW saved_urls_count-1
+
+#define MENU_EDIT_URLS 2
+#define MENU_EDIT_URLS_ARROW (saved_urls_count-1)*2+1
+
+#define MENU_PATCH_GAMES_ARROW 6-1
+#define MENU_PATCH_GAMES 3
+
+#define MENU_BROWSE_GAMES 4
+
+
+#define YES_NO_POPUP_ARROW 2-1 // YES OR NO
+#define YES_NO_GAME_POPUP_REVERT_EBOOT 1
+#define YES_NO_GAME_POPUP_PATCH_GAME 2
+#define YES_NO_GAME_POPUP_INSTALL_REPATCH 3
+#define YES_NO_GAME_POPUP_REMOVE_ALLEFRESHER 4
+
+#define TITLE_ID_PATCH 1
+#define TITLE_ID_APP 2
+
+#define REPATCH_INSTALLED_REPATCH 1
+#define REPATCH_INSTALLED_ALLEFRESHER 2
+
+#define MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN ""
+#define MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_SQUARE_BTN ""
+#define MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN ""
+#define MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN "¹"//"\x88"
+
+#define START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT 222
+
+#define DEFAULT_TITLE_ID "PCSF00000"
+
+#define DONE_A_SWITCH has_done_a_switch = 1; if (load_global_title_id()) {global_title_id_folder_type = 0;} 0
+
+#define DRAW_CHAR_BG_COLOUR_HEIGHT 19
+#define CHARACTER_HEIGHT 23
+#define TEXT_SIZE 22
+
+#define MAX_LINES 23-2 // minus 2 for title, text is alot wider and less taller on vita
+
+#define MAX_CAPITIAL_W_CHARACTERS_PER_LINE 30
+#define NEW_LINES_AMNT_PER_DIGIT_OF_X_INCREASE 6 // seems to be good
+
+#define LIVEAREA_SELECTED(target_str,event_param) memcmp(event_param.dat,target_str,strlen(target_str)) == 0
+
+int global_current_x;
+
+struct TitleIdAndGameName {
+	int title_id_folder_type;
+	char title_id[sizeof(DEFAULT_TITLE_ID)];
+	char game_name[128];
+};
+
+struct UrlToPatchTo {
+	char url[MAX_URL_LEN_INCL_NULL];
+	char digest[MAX_DIGEST_LEN_INCL_NULL];
+};
+
+
+struct UrlToPatchTo saved_urls[MAX_LINES-1];
+#define RESET_SELECTED_URL_INDEX sizeof(saved_urls) / sizeof(saved_urls[0]) + 1
+s8 selected_url_index = RESET_SELECTED_URL_INDEX;
+s8 saved_urls_count = 0;
+char global_title_id[sizeof(DEFAULT_TITLE_ID)] = DEFAULT_TITLE_ID;
+int global_title_id_folder_type = 0;
+
+int get_button_pressed(SceCtrlData *pad) {
+	int result;
+	sceCtrlPeekBufferPositive(0, pad, 1);
+	result = pad->buttons;
+
+	// accept left analog stick inputs as dpad inputs
+	if (pad->ly < 64) {
+		result |= BTN_UP;
+	}
+	else if (pad->ly > 192) {
+		result |= BTN_DOWN;
+	}
+	if (pad->lx < 64) {
+		result |= BTN_LEFT;
+	}
+	else if (pad->lx > 192) {
+		result |= BTN_RIGHT;
+	}
+	return result;
+}
+
+int set_arrow(int menu_arrow,int btn_pressed, int max_arrow) 
+{
+	int new_arrow = menu_arrow;
+
+	if (btn_pressed & BTN_UP) {
+		new_arrow--;
+	}
+	else if (btn_pressed & BTN_DOWN) {
+		new_arrow++;
+	}
+
+	if (new_arrow < 0) {
+		new_arrow = max_arrow;
+	}
+	else if (new_arrow > max_arrow) {
+		new_arrow = 0;
+	}
+	return new_arrow;
+}
+
+bool is_valid_title_id(char* title_id) // assumes its uppercase
+{
+	if(strlen(title_id) != 9) {
+		return 0;
+	}
+	for (int i = 0; i < 4; i++) {
+		if(!isalpha(title_id[i])) {
+			return 0;
+		}
+	}
+	for (int i = 5; i < 9; i++) {
+		if(!(title_id[i] >= '0' && title_id[i] <= '9')) {
+			return 0;
+		}
+	}
+	
+	return 1;
+}
+
+int save_global_title_id_to_disk() {
+	FILE *fp = fopen(TITLE_ID_TXT, "wb");
+	if (fp == 0) {
+		return -1;
+	}
+	
+	fwrite(global_title_id,1,sizeof(global_title_id)-1,fp);
+	fclose(fp);
+	return 0;
+}
+/*
+returns 1 if the title id changed
+*/
+bool load_global_title_id() {
+	char temp_title_id[sizeof(DEFAULT_TITLE_ID)] = {0};
+	bool result;
+	FILE *fp = fopen(TITLE_ID_TXT, "rb");
+	if (fp == 0) {
+		goto fail_to_load_title_id;
+	}
+	fseek(fp, 0, SEEK_END);
+	if (ftell(fp) > 9) {
+		char trailing_char[1];
+		fseek(fp, 9, SEEK_SET);
+		fread(trailing_char,1,sizeof(trailing_char),fp);
+		if (!(isspace(trailing_char[0]))) {
+			fclose(fp);
+			goto fail_to_load_title_id;
+		}
+	}
+	rewind(fp);
+	
+	fread(temp_title_id,1,sizeof(temp_title_id)-1,fp);
+	
+	for (int i = 0; temp_title_id[i] != '\0'; i++) {
+		temp_title_id[i] = toupper(temp_title_id[i]);
+	}
+	
+	if (!is_valid_title_id(temp_title_id)) {
+		fclose(fp);
+		goto fail_to_load_title_id;
+	}
+	
+	fclose(fp);
+	result = strcmp(temp_title_id,global_title_id) != 0;
+	strcpy(global_title_id,temp_title_id);
+	return result;
+	
+	fail_to_load_title_id:
+	strcpy(global_title_id,DEFAULT_TITLE_ID);
+	save_global_title_id_to_disk();
+	return 1;
+}
+
+bool is_a_url_selected() {
+	if (selected_url_index < 0 ) {
+		return 0;
+	}
+	if (selected_url_index > saved_urls_count-1 ) {
+		return 0;
+	}
+	
+	return 1;
+}
+
+int title_id_exists(char * title_id)
+{
+	char fname[sizeof("ux0:/FAGDec/patch/ABCD12345/eboot.bin")];
+	sprintf(fname,"ux0:/FAGDec/patch/%s/eboot.bin",title_id); // assumes that title_id is of lenght 9
+	
+	if (does_file_exist(fname)) {
+		return TITLE_ID_PATCH;
+	}
+	
+	sprintf(fname,"ux0:/FAGDec/app/%s/eboot.bin",title_id); // assumes that title_id is of lenght 9
+
+	if (does_file_exist(fname)) {
+		return TITLE_ID_APP;
+	}
+	return 0;
+}
+
+u32 total_count_of_patchable_games(u32 start_offset, u32 end_length)
+{
+	const char *fagdec_dirs[] = {"","ux0:/FAGDec/patch/", "ux0:/FAGDec/app/"};
+
+
+	assert(end_length > 0);
+	u32 total_count = 0;
+	u32 start_counting = 0;
+	DIR *game_dir;
+	struct dirent* reader;
+	
+	for (int fagdec_dir_index = 1; fagdec_dir_index < 3; fagdec_dir_index++) {
+		if (total_count >= end_length) {
+			break;
+		}
+		game_dir = opendir(fagdec_dirs[fagdec_dir_index]);
+		if (game_dir != NULL) {
+			while ((reader = readdir(game_dir)) != NULL) {
+				if (strcmp(reader->d_name,".") == 0 || strcmp(reader->d_name,"..") == 0) {
+					continue;
+				}
+				if (!is_valid_title_id(reader->d_name)) {
+					continue;
+				}
+				if (!title_id_exists(reader->d_name)) {
+					continue;
+				}
+				
+				if (start_counting >= start_offset) {
+					total_count++;
+					if (total_count >= end_length) {
+						break;
+					}
+				}
+				else {
+					start_counting++;
+				}
+
+			}
+			closedir(game_dir);
+		}
+	}
+	return total_count;
+}
+
+u32 load_patchable_games(struct TitleIdAndGameName buffer[], u32 start_offset, u32 end_length)
+{
+	const char *fagdec_dirs[] = {"","ux0:/FAGDec/patch/", "ux0:/FAGDec/app/"};
+
+
+	assert(end_length > 0);
+	u32 total_count = 0;
+	u32 start_counting = 0;
+	DIR *game_dir;
+	struct dirent* reader;
+	char * game_name;
+	char param_sfo_path[sizeof("ux0:/patch/ABCD12345/sce_sys/param.sfo")];
+	
+	for (int fagdec_dir_index = 1; fagdec_dir_index < 3; fagdec_dir_index++) {
+		if (total_count >= end_length) {
+			break;
+		}
+		game_dir = opendir(fagdec_dirs[fagdec_dir_index]);
+		if (game_dir != NULL) {
+			while ((reader = readdir(game_dir)) != NULL) {
+				if (strcmp(reader->d_name,".") == 0 || strcmp(reader->d_name,"..") == 0) {
+					continue;
+				}
+				if (!is_valid_title_id(reader->d_name)) {
+					continue;
+				}
+				if (!title_id_exists(reader->d_name)) {
+					continue;
+				}
+				
+				if (start_counting >= start_offset) {
+					buffer[total_count].title_id_folder_type = fagdec_dir_index;
+					strcpy(buffer[total_count].title_id,reader->d_name);
+					if (fagdec_dir_index == TITLE_ID_PATCH) {
+						sprintf(param_sfo_path,"ux0:/patch/%s/sce_sys/param.sfo",reader->d_name); // ignore the warning on this line, we already ensured that the folder name is 9 chars long
+					}
+					else if (fagdec_dir_index == TITLE_ID_APP) {
+						sprintf(param_sfo_path,"ux0:/app/%s/sce_sys/param.sfo",reader->d_name); // ignore the warning on this line, we already ensured that the folder name is 9 chars long
+					}
+					
+					game_name = get_title_id_from_param(param_sfo_path);
+					if (game_name == 0) {
+						strcpy(buffer[total_count].game_name,"Unknown??");
+					}
+					else {
+						strcpy(buffer[total_count].game_name,game_name);
+						free(game_name);
+					}
+
+					total_count++;
+					if (total_count >= end_length) {
+						break;
+					}
+				}
+				else {
+					start_counting++;
+				}
+
+			}
+			closedir(game_dir);
+		}
+	}
+	return total_count;
+}
+
+/*
+https://stackoverflow.com/questions/1488372/mimic-pythons-strip-function-in-c
+*/
+char *strstrip(char *s)
+{
+        size_t size;
+        char *end;
+
+        size = strlen(s);
+
+        if (!size)
+                return s;
+
+        end = s + size - 1;
+        while (end >= s && isspace(*end))
+                end--;
+        *(end + 1) = '\0';
+
+        while (*s && isspace(*s))
+                s++;
+
+        return s;
+}
+
+void write_saved_urls(u8 saved_urls_txt_num) {
+	struct UrlToPatchTo url_entry;
+	char write_buffer[sizeof(url_entry.url) + 1 + sizeof(url_entry.digest) + 1 + 1];
+
+
+	char filename[sizeof(SAVED_URLS_TXT_FIRST_HALF) + (sizeof("_ff")-1) + sizeof(SAVED_URLS_TXT_SECOND_HALF)];
+	sprintf(filename,"%s_%d%s",SAVED_URLS_TXT_FIRST_HALF,saved_urls_txt_num,SAVED_URLS_TXT_SECOND_HALF);
+
+	FILE *fp = fopen(filename, "wb+"); // not checking if it fails to open, just let it segfault, cause theres bigger problems if it doesnt works
+	for (int i = 0; i < saved_urls_count; i++) {
+		url_entry = saved_urls[i];
+		if (url_entry.digest[0] != 0) {
+			sprintf(write_buffer,"%s %s\n",url_entry.url,url_entry.digest);
+		}
+		else {
+			sprintf(write_buffer,"%s\n",url_entry.url);
+		}
+		
+		fprintf(fp,write_buffer);
+	}
+	fclose(fp);
+	
+}
+
+void load_saved_urls(u8 saved_urls_txt_num) {
+	u8 digest_offset_from_line;
+	u8 digest_len;
+    char * line = NULL;
+	char * orig_line = NULL;
+    size_t len = 0;
+    ssize_t len_of_line;
+
+	char filename[sizeof(SAVED_URLS_TXT_FIRST_HALF) + (sizeof("_ff")-1) + sizeof(SAVED_URLS_TXT_SECOND_HALF)];
+	sprintf(filename,"%s_%d%s",SAVED_URLS_TXT_FIRST_HALF,saved_urls_txt_num,SAVED_URLS_TXT_SECOND_HALF);
+
+	FILE *fp = fopen(filename, "ab+"); // not checking if it fails to open, just let it segfault, cause theres bigger problems if it doesnt works
+    rewind(fp);
+	int ready_url_i = 0;
+	saved_urls_count = 0;
+	while ((len_of_line = __getline(&orig_line, &len, fp)) > 0) {
+		line = strstrip(orig_line);
+		
+		// remove any extra chars
+		if (len_of_line > MAX_LINE_LEN_OF_URL_ENTRY) {
+			line[MAX_LINE_LEN_OF_URL_ENTRY] = 0;
+			len_of_line = MAX_LINE_LEN_OF_URL_ENTRY;
+		}
+		
+		// getting all the characters after first space, not including the space
+		digest_offset_from_line = strcspn(line, " ");
+		digest_len = len_of_line - digest_offset_from_line;
+
+		struct UrlToPatchTo temp_url;
+		temp_url.url[0] = 0;
+		temp_url.digest[0] = 0;		
+
+		if (digest_len != 0) {
+			digest_len--;
+			// remove extra chars on digest
+			if (digest_len > MAX_DIGEST_LEN_INCL_NULL-1)  {
+				digest_len = MAX_DIGEST_LEN_INCL_NULL-1;
+			}
+			memcpy(temp_url.digest,line+digest_offset_from_line+1,digest_len);
+			temp_url.digest[digest_len] = 0; // ensure it wont read leftover data
+			
+			// removing the digest off the line, itll just be left with the url
+			line[digest_offset_from_line] = 0;
+			len_of_line -= digest_len;
+			len_of_line--; // for the space char
+		}
+		
+
+		// remove any extra chars
+		if(len_of_line > MAX_URL_LEN_INCL_NULL-1) {
+			line[MAX_URL_LEN_INCL_NULL-1] = 0;
+			len_of_line = MAX_URL_LEN_INCL_NULL;
+		}
+		
+		if (len_of_line != 0) {
+			strcpy(temp_url.url,line);
+		}
+		
+		
+		memcpy(&saved_urls[ready_url_i],&temp_url,sizeof(struct UrlToPatchTo));
+		saved_urls_count++;
+		
+		
+		ready_url_i++;
+		if (ready_url_i >= sizeof(saved_urls) / sizeof(saved_urls[0])) {
+			break;
+		}
+		
+    }
+	
+	if (ready_url_i < sizeof(saved_urls) / sizeof(saved_urls[0])) {
+		while (ready_url_i < sizeof(saved_urls) / sizeof(saved_urls[0])) {
+			struct UrlToPatchTo temp_url_2;
+			strcpy(temp_url_2.url,"ENTER_A_URL_HERE");
+			strcpy(temp_url_2.digest,"");
+			memcpy(&saved_urls[ready_url_i],&temp_url_2,sizeof(struct UrlToPatchTo));
+			saved_urls_count++;
+			ready_url_i++;
+		}
+	}
+	
+
+	
+	fclose(fp);
+	free(orig_line);
+
+}
+
+#define CONFIG_MAX_LINE_LENGTH 256
+/*
+i try to go off this https://github.com/DaveeFTW/taihen-parser/
+*/
+int is_repatch_installed() {
+	FILE *fp;
+	char * orig_line = NULL;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t len_of_line;
+	int last_occurance;
+	char * last_dot;
+	bool in_kernel_section = 0;
+	int skprx_extension_offset;
+	int result = 0;
+	fp = fopen("ux0:/tai/config.txt","rb");
+	if (fp == 0) {
+		fp = fopen("ur0:/tai/config.txt","rb");
+		if (fp == 0) {
+			return -1;
+		}
+	}
+
+	// i am not going to handle halt point (! chars) fuck that shit
+	while ((len_of_line = __getline(&orig_line, &len, fp)) > 0) {
+		// have to check this first per line as per the page
+		if (len_of_line > CONFIG_MAX_LINE_LENGTH) {
+			continue;
+		}
+		line = strstrip(orig_line);
+
+		// ignore comments
+		line[strcspn(line, "#")] = 0;
+		len_of_line = strlen(line);
+		if (!line[0]) {
+			continue;
+		}
+		// now we can parse the line
+		if (line[0] == '*') {
+			if (strcmp(line,"*KERNEL") == 0) {
+				in_kernel_section = 1;
+			}
+			else {
+				in_kernel_section = 0;
+			}
+			continue;
+		}
+		// finally start parsing the actual entry
+
+		// get the last part of the path
+		last_occurance = strrchr(line,'/');
+		if (last_occurance != 0) {
+			line = last_occurance+1;
+		}
+
+
+
+		// if theres and underscore in the name, we will only check the text before it
+		line[strcspn(line, "_")] = 0;
+		len_of_line = strlen(line);
+		if (!line[0]) {
+			continue;
+		}
+		// Remove the file subfix extension
+		last_dot = strrchr(line, '.');
+		if (last_dot) {
+			*last_dot = 0;
+		}
+
+		if (strncmp(line,"Allefresher",sizeof("Allefresher")) == 0) {
+			fclose(fp);
+			free(orig_line);
+			return REPATCH_INSTALLED_ALLEFRESHER;
+		}
+
+		if (strncmp(line,"repatch",sizeof("repatch")) == 0 && in_kernel_section) {
+			result = REPATCH_INSTALLED_REPATCH;
+		}
+
+	}
+	fclose(fp);
+	free(orig_line);
+	return result;
+}
+
+
+bool install_repatch(bool remove_allefresher) {
+	int rename_and_remove_rets;
+	bool is_ur0_config = 0;
+	FILE *fp;
+	FILE *fp_temp;
+	char * orig_line = NULL;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t len_of_line;
+	int kernel_header_line_num = -1;
+	int last_occurance;
+	char * last_dot;
+	int allefresher_line_num = -1;
+	int line_num = 0;
+	
+	fp = fopen("ux0:/tai/config.txt","rb");
+	if (fp == 0) {
+		fp = fopen("ur0:/tai/config.txt","rb");
+		if (fp == 0) {
+			return 0;
+		}
+		is_ur0_config = 1;
+	}
+
+	// i am not going to handle halt point (! chars) fuck that shit
+	while ((len_of_line = __getline(&orig_line, &len, fp)) > 0) {
+		// have to check this first per line as per the page
+		if (len_of_line > CONFIG_MAX_LINE_LENGTH) {
+			line_num++; continue;
+		}
+		line = strstrip(orig_line);
+
+		// ignore comments
+		line[strcspn(line, "#")] = 0;
+		len_of_line = strlen(line);
+		if (!line[0]) {
+			line_num++; continue;
+		}
+		// now we can parse the line
+		if (line[0] == '*') {
+			if (strcmp(line,"*KERNEL") == 0) {
+				kernel_header_line_num = line_num;
+				if (remove_allefresher) {
+					line_num++; continue;
+				}
+				else {
+					break;
+				}
+			}
+		}
+		if (remove_allefresher) {
+			// parsing line to check for allerfresher again
+			last_occurance = strrchr(line,'/');
+			if (last_occurance != 0) {
+				line = last_occurance+1;
+			}
+
+			// TODO This code allows for lines like ur0:tai/repatch but whos doing that?
+			// 
+
+			// if theres and underscore in the name, we will only check the text before it
+			line[strcspn(line, "_")] = 0;
+			len_of_line = strlen(line);
+			if (!line[0]) {
+				line_num++; continue;
+			}
+			// Remove the file subfix extension
+			last_dot = strrchr(line, '.');
+			if (last_dot) {
+				*last_dot = 0;
+			}
+
+			if (strncmp(line,"Allefresher",sizeof("Allefresher")) == 0) {
+				allefresher_line_num = line_num;
+				line_num++; continue;
+			}
+		}
+		line_num++;
+	}
+
+	if (remove_allefresher && allefresher_line_num == -1) {
+		fclose(fp);
+		free(orig_line);
+		return 0;
+	}
+	else if (kernel_header_line_num == -1) {
+		fclose(fp);
+		free(orig_line);
+		return 0;
+	}
+	rewind(fp);
+	
+	line_num = 0;
+	fp_temp = fopen(TEMP_TAI_CONFIG,"wb");
+	if (fp_temp == 0) {
+		fclose(fp);
+		free(orig_line);
+		return 0;
+	}
+	kernel_header_line_num++; // shortcut incremnt so i will insert a new line after this
+	while ((len_of_line = __getline(&orig_line, &len, fp)) > 0) {
+		if (line_num == kernel_header_line_num && !remove_allefresher) {
+			if (is_ur0_config) {
+				fwrite(REPATCH_SKPRX_UR0_ENTRY,1,sizeof(REPATCH_SKPRX_UR0_ENTRY)-1,fp_temp); // do not write the null term
+			}
+			else {
+				fwrite(REPATCH_SKPRX_UX0_ENTRY,1,sizeof(REPATCH_SKPRX_UX0_ENTRY)-1,fp_temp); // do not write the null term
+			}
+			
+		}
+		if (line_num == allefresher_line_num) {
+			// comment out the line
+			fwrite("# ",1,sizeof("# ")-1,fp_temp);
+		}
+		fwrite(orig_line,1,len_of_line,fp_temp); // do not write the null term
+
+		line_num++;
+	}
+	fclose(fp_temp);
+
+	fclose(fp);
+	free(orig_line);
+
+	if (is_ur0_config) {
+		rename_and_remove_rets = copy_file(REPATCH_SKPRX_UR0_PATH,BUILT_IN_REPATCH_SKPRX_PATH);
+		if (rename_and_remove_rets < 0) {
+			return 0;
+		}
+		rename_and_remove_rets = copy_file("ur0:/tai/config.txt",TEMP_TAI_CONFIG);
+		if (rename_and_remove_rets < 0) {
+			return 0;
+		}
+	}
+	else {
+		rename_and_remove_rets = copy_file(REPATCH_SKPRX_UX0_PATH,BUILT_IN_REPATCH_SKPRX_PATH);
+		if (rename_and_remove_rets < 0) {
+			return 0;
+		}
+		rename_and_remove_rets = copy_file("ux0:/tai/config.txt",TEMP_TAI_CONFIG);
+		if (rename_and_remove_rets < 0) {
+			return 0;
+		}
+	}
+	rename_and_remove_rets = remove(TEMP_TAI_CONFIG);
+	if (rename_and_remove_rets < 0) {
+		return 0;
+	}
+	return 1;
+
+}
+
+int install_repatch_thread(unsigned int arglen, void **argp) {
+	struct SecondThreadArgs *args = *argp;
+	
+	if (install_repatch(args->remove_allefresher)) {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_REPATCH_INSTALLED);
+		return THREAD_RET_REPATCH_INSTALLED;
+	}
+	else {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_REPATCH_INSTALL_FAILED);
+		return THREAD_RET_REPATCH_INSTALL_FAILED;
+	}
+}
+
+int revert_patches_thread(unsigned int arglen, void **argp) {
+	struct SecondThreadArgs *args = *argp;
+	char repatch_eboot_bin_path[sizeof("ux0:/rePatch/abcd12345/eboot.bin")];
+	sprintf(repatch_eboot_bin_path,"ux0:/rePatch/%s/eboot.bin",args->title_id);
+
+	if (remove(repatch_eboot_bin_path) == 0) {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_EBOOT_REVERTED);
+		return THREAD_RET_EBOOT_REVERTED;
+	}
+	else {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_EBOOT_BAK_NO_EXIST);
+		return THREAD_RET_EBOOT_BAK_NO_EXIST;
+	}
+}
+
+int apply_patches_thread(unsigned int arglen, void **argp) {
+	int unmake_fself_res;
+	int copy_file_res;
+	int patch_res = 0;
+	struct SecondThreadArgs *args = *argp;
+	struct UrlToPatchTo my_url = saved_urls[selected_url_index];
+	char fagdec_eboot[sizeof("ux0:/FAGDec/patch/ABCD12345/eboot.bin")];
+	char repatch_eboot_bin_path[sizeof("ux0:/rePatch/abcd12345/eboot.bin")];
+	char repatch_title_id_folder[sizeof("ux0:/rePatch/abcd12345/")];
+	
+	sprintf(repatch_eboot_bin_path,"ux0:/rePatch/%s/eboot.bin",args->title_id);
+	sprintf(repatch_title_id_folder,"ux0:/rePatch/%s/",args->title_id);
+	
+	switch (args->title_id_folder_type) {
+		case TITLE_ID_PATCH:
+			sprintf(fagdec_eboot,"ux0:/FAGDec/patch/%s/eboot.bin",args->title_id);
+			break;
+		case TITLE_ID_APP:
+			sprintf(fagdec_eboot,"ux0:/FAGDec/app/%s/eboot.bin",args->title_id);
+			break;
+		default:
+			assert(0);
+	}
+
+	// ensure working from clean state
+	sceClibPrintf("Cleaning workspace\n");
+	remove(WORKING_DIR "eboot.bin.elf");
+	remove(WORKING_DIR "eboot.bin");
+	
+	if (does_file_exist(WORKING_DIR "eboot.bin.elf") || does_file_exist(WORKING_DIR "eboot.bin.bin")) {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
+		return THREAD_RET_EBOOT_BACKUP_FAILED;
+	}
+	
+	sceClibPrintf("Copying FAGDec eboot to workspace\n");
+	copy_file_res = copy_file(WORKING_DIR "eboot.bin",fagdec_eboot);
+	
+	if (copy_file_res < 0) {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
+		return THREAD_RET_EBOOT_BACKUP_FAILED;
+	}
+	
+	if (!does_file_exist(WORKING_DIR "eboot.bin")) {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
+		return THREAD_RET_EBOOT_BACKUP_FAILED;
+	}
+	sceClibPrintf("Decrypting/decompressing eboot.bin with vita-unmake-fself\n");
+	unmake_fself_res = unmake_fself(WORKING_DIR "eboot.bin",WORKING_DIR "eboot.bin.elf");
+	
+	if (unmake_fself_res != 0) {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_EBOOT_DECRYPT_FAILED);
+		return THREAD_RET_EBOOT_DECRYPT_FAILED;
+	}
+	
+	if (!does_file_exist(WORKING_DIR "eboot.bin.elf")) {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_EBOOT_DECRYPT_FAILED);
+		return THREAD_RET_EBOOT_DECRYPT_FAILED;
+	}
+	
+	sceClibPrintf("start patching\n");
+	patch_res = args->patch_func(WORKING_DIR "eboot.bin.elf",my_url.url,my_url.digest,args->normalise_digest);
+	sceClibPrintf("done patching\n");
+
+	if (patch_res != 0 ) {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_EBOOT_PATCH_FAILED);
+		return THREAD_RET_EBOOT_PATCH_FAILED;
+	}
+
+
+	sceClibPrintf("Encrypting eboot.bin (elf inject to working eboot.bin)\n");
+	unmake_fself_res = elf_inject(WORKING_DIR "eboot.bin.elf",WORKING_DIR "eboot.bin");
+	
+	if (unmake_fself_res != 0) {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_EBOOT_DECRYPT_FAILED);
+		return THREAD_RET_EBOOT_DECRYPT_FAILED;
+	}
+	
+	sceClibPrintf("Making rePatch folders if not exist\n");
+	
+	
+	
+	mkdir("ux0:/rePatch/", 0777);
+	mkdir(repatch_title_id_folder, 0777);
+	
+	sceClibPrintf("Finally, copying new working eboot.bin to rePatch folder\n");
+	copy_file_res = copy_file(repatch_eboot_bin_path,WORKING_DIR "eboot.bin");
+	
+	if (copy_file_res < 0) {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
+		return THREAD_RET_EBOOT_BACKUP_FAILED;
+	}
+	
+	args->has_finished = 1;
+	sceKernelExitThread(THREAD_RET_EBOOT_PATCHED);
+	return THREAD_RET_EBOOT_PATCHED;
+}
+
+int vita2d_font_draw_textf_with_bg(vita2d_font *font,u32 colour, u32 bg_colour,int x, int y, int size, char * text,...) {
+	int x_from_font;
+	char buf[1024];
+	va_list argptr;
+
+	va_start(argptr, text);
+	vsnprintf(buf, sizeof(buf), text, argptr);
+	va_end(argptr);
+	
+	// simple read by line
+	char * line = buf;
+	while (line) {
+		char * next_line = strchr(line, '\n');
+		if (next_line) {
+			*next_line = '\0';
+		}
+		// per line code
+		x_from_font = vita2d_font_draw_text(font, x, y, colour, size, line);
+		vita2d_draw_rectangle(x, y-DRAW_CHAR_BG_COLOUR_HEIGHT, x_from_font, DRAW_CHAR_BG_COLOUR_HEIGHT, bg_colour);
+		vita2d_font_draw_text(font, x, y, colour, size, line);
+		y += CHARACTER_HEIGHT;
+		// per line code end
+		if (next_line) {
+			*next_line = '\n';
+		}
+		line = next_line ? (next_line+1) : 0;
+	}
+	global_current_x = x_from_font;
+	return x_from_font;
+}
+
+#define DrawFormatString(x, y, input_str, ...) \
+    vita2d_font_draw_textf_with_bg(font, font_colour, bg_colour, x, y, TEXT_SIZE, input_str, ##__VA_ARGS__)
+
+#define DrawFormatStringWithSize(size,x, y, input_str, ...) \
+    vita2d_font_draw_textf_with_bg(font, font_colour, bg_colour, x, y, size, input_str, ##__VA_ARGS__)
+
+#define DrawString(x, y, input_str) \
+    vita2d_font_draw_textf_with_bg(font, font_colour, bg_colour, x, y, TEXT_SIZE, input_str)
+
+
+
+#define SetFontColor(font_colour_in,bg_colour_in) bg_colour = bg_colour_in; font_colour = font_colour_in
+
+#define GetFontX() global_current_x
+void draw_scene(vita2d_font *font, u8 current_menu,int menu_arrow, bool is_alive_toggle_thing, u8 error_yet_to_press_ok, char* error_msg, int yes_no_game_popup, int started_a_thread,
+u8 saved_urls_txt_num, bool normalise_digest_checked, 
+struct TitleIdAndGameName browse_games_buffer[], u32 browse_games_buffer_size, u32 browse_games_buffer_start,
+char * global_title_id, int global_title_id_folder_type
+) {
+	int x_get_font;
+	int x = 0;
+	int y = CHARACTER_HEIGHT;
+	u32 bg_colour;
+	u32 font_colour;
+	
+	bg_colour = TITLE_BG_COLOUR;
+	font_colour = TITLE_FONT_COLOUR;
+	
+	vita2d_set_clear_color(BACKGROUND_COLOUR);
+	
+	vita2d_font_draw_textf_with_bg(font,TITLE_FONT_COLOUR,TITLE_BG_COLOUR,START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT,y,TEXT_SIZE,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN" to refresh things if ->%d<- is a solid 1 or 0, app is frozen " VERSION_NUM_STR,is_alive_toggle_thing);
+	
+	if (error_yet_to_press_ok != 0) {
+		y += CHARACTER_HEIGHT;
+		if (error_yet_to_press_ok == 1) {
+			SetFontColor(ERROR_MESSAGE_COLOUR,ERROR_MESSAGE_BG_COLOUR);
+		}
+		else if (error_yet_to_press_ok == 2) {
+			SetFontColor(SUCCESS_MESSAGE_COLOUR,SUCCESS_MESSAGE_BG_COLOUR);
+		}
+		DrawFormatString(x,y,error_msg);
+		y += CHARACTER_HEIGHT*8; // give a bunch of space for title
+		SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, SELECTED_FONT_BG_COLOUR);
+		DrawFormatString(x,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN" to continue");
+		return;
+	}
+	
+	else if (started_a_thread != 0) {
+		y += CHARACTER_HEIGHT;
+		switch (started_a_thread) {
+			case YES_NO_GAME_POPUP_REVERT_EBOOT:
+				DrawFormatString(x,y,"Reverting patches on your game. Please wait...");
+				break;
+			case YES_NO_GAME_POPUP_PATCH_GAME:
+				DrawFormatString(x,y,"Applying patches to your game. Please wait...");
+				break;
+			case YES_NO_GAME_POPUP_INSTALL_REPATCH:
+				DrawFormatString(x,y,"Installing repatch_ex.skprx. Please wait...");
+				break;
+			case YES_NO_GAME_POPUP_REMOVE_ALLEFRESHER:
+				DrawFormatString(x,y,"Removing Allefresher. Please wait...");
+				break;
+		}
+		return;
+	}
+	
+	else if (yes_no_game_popup != 0) {
+		y += CHARACTER_HEIGHT;
+		DrawFormatString(x,y,error_msg);
+		y += CHARACTER_HEIGHT*8; // give a bunch of space for title
+
+		bg_colour = (menu_arrow == 0) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+		SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+		DrawString(x,y,"Yes");
+		y += CHARACTER_HEIGHT;
+
+		bg_colour = (menu_arrow == 1) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+		SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+		DrawString(x,y,"No");
+		y += CHARACTER_HEIGHT;
+
+		return;
+	}
+	
+    switch (current_menu) {
+		case MENU_MAIN:
+			
+			DrawFormatString(x,y,"Main Menu");
+			y += CHARACTER_HEIGHT*2;
+			
+			bg_colour = (menu_arrow == 0) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawString(x,y,"Select url");
+			y += CHARACTER_HEIGHT;
+
+			bg_colour = (menu_arrow == 1) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawString(x,y,"Edit urls");
+			y += CHARACTER_HEIGHT;
+
+
+			bg_colour = (menu_arrow == 2) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawString(x,y,"Patch Games");
+			y += CHARACTER_HEIGHT;
+
+			bg_colour = (menu_arrow == 3) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawString(x,y,"Exit");
+			y += CHARACTER_HEIGHT;
+			
+			y += CHARACTER_HEIGHT*(3-1);
+			
+			SetFontColor(TURNED_ON_FONT_COLOUR,0);
+			DrawString(x,y,"Things will have this font colour if it is selected");
+			y += CHARACTER_HEIGHT*2;
+			SetFontColor(TITLE_FONT_COLOUR,TITLE_BG_COLOUR);
+			DrawString(x,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN" to enter menus and select things");
+			y += CHARACTER_HEIGHT*2;
+			DrawString(x,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN" to go back to the previous menu");
+			y += CHARACTER_HEIGHT*2;
+			DrawString(x,y,"Use the D-pad (up and down) to navigate through the menus\nleft and right to change pages");
+			y += CHARACTER_HEIGHT*(2+1);
+			DrawString(x,y,"Check out\nhttps://littlebigpatcherteam.github.io/2025/03/15/LBPC59548.html");
+			y += CHARACTER_HEIGHT*(2+1);
+			DrawString(x,y,"As per GPL-3.0 licence you MUST be provided the source code of this app!\nrefer to above for more info");
+			break;
+		case MENU_PATCH_GAMES:
+			DrawFormatString(x,y,"Patch a game");
+			y += CHARACTER_HEIGHT*2;
+			
+			bg_colour = (menu_arrow == 0) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawFormatString(x,y,"Edit Title id: ");
+			DrawFormatString(GetFontX(),y,global_title_id);
+			y += CHARACTER_HEIGHT;
+
+			bg_colour = (menu_arrow == 1) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			font_colour = (normalise_digest_checked) ? TURNED_ON_FONT_COLOUR : SELECTABLE_NORMAL_FONT_COLOUR;
+			SetFontColor(font_colour, bg_colour);
+			DrawFormatString(x,y,"Normalise digest (select if debug build or previously patched by refresher)");
+			y += CHARACTER_HEIGHT;
+
+			bg_colour = (menu_arrow == 2) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawFormatString(x,y,"Browse games for Title id");
+			y += CHARACTER_HEIGHT;
+
+			bg_colour = (menu_arrow == 3) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawFormatString(x,y,"Revert patches");
+			y += CHARACTER_HEIGHT;
+			
+			bg_colour = (menu_arrow == 4) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawFormatString(x,y,"Patch! (%s)",PATCH_METHOD_MAIN_SERIES);
+			y += CHARACTER_HEIGHT;
+
+			bg_colour = (menu_arrow == 5) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawFormatString(x,y,"Patch! (%s)",PATCH_METHOD_VITA_CROSS_CONTROLLER_APP);
+			y += CHARACTER_HEIGHT;
+
+			break;
+			
+		case MENU_SELECT_URLS:
+		case MENU_EDIT_URLS:
+			switch (current_menu) {
+				case MENU_SELECT_URLS:
+					DrawFormatString(x,y,"Select url\n(Page %d/99)",saved_urls_txt_num);
+					break;
+				case MENU_EDIT_URLS:
+					DrawFormatString(x,y,"Edit urls\n(Page %d/99)",saved_urls_txt_num);
+					break;
+			}
+			
+			y += CHARACTER_HEIGHT*2;
+			
+			int i = 0;
+			int current_url_entry_index;
+			struct UrlToPatchTo url_entry;
+			int full_text_len;
+			int new_max_capitial_w_characters_per_line;
+			int temp_new_x_len;
+			//int temp_new_y_len;
+			int i_stop = (current_menu == MENU_EDIT_URLS) ? saved_urls_count*2 : saved_urls_count;
+			
+			
+			while (i < i_stop) {
+				current_url_entry_index = i;
+				if (current_menu == MENU_EDIT_URLS) {
+					current_url_entry_index = i/2; // relying on round down, 3/2==1
+				}
+				url_entry = saved_urls[current_url_entry_index];
+
+				
+				
+				bg_colour = (menu_arrow == i) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+				font_colour = (current_menu == MENU_SELECT_URLS && selected_url_index == i) ? TURNED_ON_FONT_COLOUR : SELECTABLE_NORMAL_FONT_COLOUR;
+				SetFontColor(font_colour, bg_colour);
+				
+				
+				full_text_len = strlen(url_entry.url) + 1 + strlen(url_entry.digest);
+				temp_new_x_len = TEXT_SIZE;
+				if (full_text_len > MAX_CAPITIAL_W_CHARACTERS_PER_LINE) {
+					new_max_capitial_w_characters_per_line = MAX_CAPITIAL_W_CHARACTERS_PER_LINE;
+					
+					//temp_new_y_len = NORMAL_TEXT_Y;
+					while (full_text_len > new_max_capitial_w_characters_per_line) {
+						new_max_capitial_w_characters_per_line += NEW_LINES_AMNT_PER_DIGIT_OF_X_INCREASE; 
+						temp_new_x_len -= 1;
+						//temp_new_y_len -= 1;
+					}
+				}
+
+				
+				if (current_menu == MENU_EDIT_URLS) {
+					if (i % 2 == 0) { // url i even case
+						DrawFormatStringWithSize(temp_new_x_len,x,y,"%s",url_entry.url);
+					}
+					else { // digest i odd case
+						DrawFormatStringWithSize(temp_new_x_len,GetFontX(),y," %s",url_entry.digest);
+						y += CHARACTER_HEIGHT;
+					}
+
+				}
+				else {
+					DrawFormatStringWithSize(temp_new_x_len,x,y,"%s %s",url_entry.url,url_entry.digest);
+					y += CHARACTER_HEIGHT;
+				}
+
+				i++;
+			}
+			break;
+		case MENU_BROWSE_GAMES:
+			DrawFormatString(x,y,"Browse games!\nTitle id: %s",global_title_id);
+			y += CHARACTER_HEIGHT*2;
+			DrawFormatString(x,y,"Game missing? ensure you have\nDECRYPT(SELF) on the game patch eboot.bin in FAGDec");
+			y += CHARACTER_HEIGHT*2;
+			for (int i = 0; i < browse_games_buffer_size; i++) {
+				bg_colour = (menu_arrow == (i + browse_games_buffer_start)) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+				font_colour = (strcmp(global_title_id,browse_games_buffer[i].title_id) == 0 && browse_games_buffer[i].title_id_folder_type == global_title_id_folder_type) ? TURNED_ON_FONT_COLOUR : SELECTABLE_NORMAL_FONT_COLOUR;
+				SetFontColor(font_colour, bg_colour);
+				if (browse_games_buffer[i].title_id_folder_type == TITLE_ID_PATCH) {
+					DrawFormatString(x,y,"Patch: %s %s",browse_games_buffer[i].title_id,browse_games_buffer[i].game_name);
+				}
+				else if (browse_games_buffer[i].title_id_folder_type == TITLE_ID_APP) {
+					DrawFormatString(x,y,"App: %s %s",browse_games_buffer[i].title_id,browse_games_buffer[i].game_name);
+				}
+				y += CHARACTER_HEIGHT;
+			}
+			
+			break;
+	}
+
+}
+
+int main(int argc, char *argv[]) {
+	SceCtrlData pad;
+	int my_btn;
+	int old_btn = 0;
+	char patch_or_app[sizeof("Patch")];
+	bool is_alive_toggle_thing = 0;
+	struct UrlToPatchTo temp_editing_url;
+	char editing_url_text_buffer[72];
+	u8 error_yet_to_press_ok = 0;
+	bool exit_after_done = 0;
+	bool reboot_the_vita = 0;
+	int started_a_thread = 0;
+	int yes_no_game_popup = 0;
+	char * game_title;
+	char param_sfo_path[sizeof("ux0:/patch/ABCD12345/sce_sys/param.sfo")];
+	char error_msg[1000];
+	char patch_method[200];
+	char pretty_showey[500];
+	bool has_done_a_switch = 1;
+	u8 current_menu = MENU_MAIN;
+	int menu_arrow = 0;
+	u8 saved_urls_txt_num = 1;
+	u32 browse_games_arrow = 0;
+	u32 browse_games_buffer_start = 0;
+	u32 browse_games_buffer_max_size = MAX_LINES-2; // minus 2 for the extra game missing msg, its 2 lines
+	u32 browse_games_buffer_size = 0;
+	struct TitleIdAndGameName browse_games_buffer[browse_games_buffer_max_size];
+	
+	int temp_title_id_folder_type;
+	bool first_time = 1;
+	int repatch_installed_res;
+	
+	int launch_by_uri_res;
+	
+	mkdir(ROOT_DIR, 0777);
+	mkdir(WORKING_DIR, 0777);
+	load_config();
+
+	if (!does_file_exist(NEW_NUM_1_SAVED_URLS_TXT)) {
+		FILE *fp_to_write_placeholder_urls = fopen(NEW_NUM_1_SAVED_URLS_TXT,"wb");
+		if (fp_to_write_placeholder_urls == 0) {
+			return 1;
+		}
+		fwrite(DEFAULT_URLS,1,sizeof(DEFAULT_URLS)-1,fp_to_write_placeholder_urls);
+		fclose(fp_to_write_placeholder_urls);
+	}
+
+	// init the global second_thread_args
+	second_thread_args.has_finished = 0;
+	second_thread_args.normalise_digest = 1;
+	second_thread_args.remove_allefresher = 0;
+	second_thread_args.patch_func = &patch_eboot_elf_main_series;
+	second_thread_args.title_id_folder_type = global_title_id_folder_type;
+	second_thread_args.title_id[0] = 0;
+
+	// thread vars
+	SceUID second_thread_id;
+	int second_thread_retval;
+	void *second_args_pointer_to_avoid_copy = &second_thread_args;
+	
+	sceShellUtilInitEvents(0);
+	
+	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
+	memset(&pad, 0, sizeof(pad));
+	
+	init_for_input();
+
+	SceAppUtilAppEventParam eventParam;
+	memset(&eventParam, 0, sizeof(SceAppUtilAppEventParam));
+	sceAppUtilReceiveAppEvent(&eventParam);
+	
+	vita2d_init();
+	vita2d_font *font = vita2d_load_font_mem(NotoSans_Regular_ttf_bin, NotoSans_Regular_ttf_bin_len);
+
+	while (1) {
+		my_btn = get_button_pressed(&pad);
+		vita2d_start_drawing();
+		vita2d_clear_screen();
+		
+		if (first_time) {
+			if (LIVEAREA_SELECTED("psla:-install_fagdec_vpk",eventParam)) {
+				FILE *vita_shell_lastdir = fopen("ux0:/VitaShell/internal/lastdir.txt","wb");
+				if (vita_shell_lastdir == 0) {
+					sprintf(error_msg,"Looks like VitaShell isn't installed, please install it first and boot it at least once");
+					exit_after_done = 1;
+					goto done_with_first_time_checking;
+				}
+				fwrite(FAGDEC_VPK_LOCATION,1,sizeof(FAGDEC_VPK_LOCATION),vita_shell_lastdir);
+				fclose(vita_shell_lastdir);
+				launch_by_uri_res = sceAppMgrLaunchAppByUri(0x20000, "psgm:play?titleid=VITASHELL");
+				if (launch_by_uri_res < 0) {
+					sprintf(error_msg,"Some reason, we could not boot VitaShell");
+					exit_after_done = 1;
+					goto done_with_first_time_checking;
+				}
+				return 0;
+				
+			}
+			repatch_installed_res = is_repatch_installed();
+			if (is_repatch_installed() < 0) {
+				error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
+				sprintf(error_msg,"Some reason, we could not parse your tai config.txt, best to report this error");
+				exit_after_done = 1;
+				goto done_with_first_time_checking;
+			}
+			if (repatch_installed_res == REPATCH_INSTALLED_REPATCH) {
+
+			}
+			else if (repatch_installed_res == REPATCH_INSTALLED_ALLEFRESHER) {
+				yes_no_game_popup = YES_NO_GAME_POPUP_REMOVE_ALLEFRESHER;
+				sprintf(error_msg,"Allefresher was detected to be installed, this needs to be removed for this to work\nWould you like to remove Allefresher (would require a reboot)");
+				menu_arrow = 0; // default select yes because we want users to do this
+				goto done_with_first_time_checking;
+			}
+			else if (repatch_installed_res == 0) {
+				yes_no_game_popup = YES_NO_GAME_POPUP_INSTALL_REPATCH;
+				sprintf(error_msg,"rePatch is not detected, this is required for this app to work\nWould you like to install rePatch? (would require a reboot)");
+				menu_arrow = 0; // default select yes because we want users to do this
+				goto done_with_first_time_checking;
+			}
+			done_with_first_time_checking:
+			first_time = 0;
+			goto draw_scene_direct;
+		}
+
+		
+ 		if (!(my_btn & old_btn)) {
+			// special menus, popups
+			if (error_yet_to_press_ok) {
+				if (my_btn & BTN_CROSS) {
+					if (exit_after_done) {
+						return 0;
+					}
+					if (reboot_the_vita) {
+						scePowerRequestColdReset();
+						return 0;
+					}
+					error_yet_to_press_ok = 0;
+				}
+				goto draw_scene_direct;
+			}
+			
+			else if (started_a_thread) {
+				if (second_thread_args.has_finished) {
+					assert(sceKernelWaitThreadEnd(second_thread_id,&second_thread_retval,0) == 0);
+					assert(sceKernelDeleteThread(second_thread_id) == 0);
+					second_thread_args.has_finished = 0;
+					started_a_thread = 0;
+					
+					switch (second_thread_retval) {
+						case THREAD_RET_EBOOT_REVERTED:
+							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_SUCCESS;
+							sprintf(error_msg,"Succesfully reverted patches on %s",global_title_id);
+							current_menu = MENU_PATCH_GAMES;
+							menu_arrow = 0;
+							goto draw_scene_direct;
+							break;
+
+						case THREAD_RET_EBOOT_BAK_NO_EXIST:
+							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
+							sprintf(error_msg,"ux0:rePatch/%s/eboot.bin does not exist\nmost likley you never patched before",global_title_id);
+							current_menu = MENU_PATCH_GAMES;
+							menu_arrow = 0;
+							goto draw_scene_direct;
+							break;
+						
+						case THREAD_RET_EBOOT_PATCHED:
+							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_SUCCESS;
+							sprintf(error_msg,"Succesfully patched (%s)%s",patch_method,pretty_showey);
+							current_menu = MENU_PATCH_GAMES;
+							menu_arrow = 0;
+							exit_after_done = 1;
+							goto draw_scene_direct;
+							break;
+						case THREAD_RET_EBOOT_BACKUP_FAILED:
+							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
+							sprintf(error_msg,"Some reason, we could not backup your EBOOT.BIN on %s",pretty_showey);
+							current_menu = MENU_PATCH_GAMES;
+							menu_arrow = 0;
+							exit_after_done = 1;
+							goto draw_scene_direct;
+							break;
+						case THREAD_RET_EBOOT_DECRYPT_FAILED:
+							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
+							sprintf(error_msg,"Could not decrypt EBOOT.BIN on%s",pretty_showey);
+							
+							current_menu = MENU_PATCH_GAMES;
+							menu_arrow = 0;
+							exit_after_done = 1;
+							goto draw_scene_direct;
+							break;
+						case THREAD_RET_EBOOT_PATCH_FAILED:
+							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
+							sprintf(error_msg,"Could not patch (%s) EBOOT.BIN on%s\nplease report your game",patch_method,pretty_showey);
+							current_menu = MENU_PATCH_GAMES;
+							menu_arrow = 0;
+							exit_after_done = 1;
+							goto draw_scene_direct;
+							break;
+						case THREAD_RET_REPATCH_INSTALL_FAILED:
+							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
+							if (second_thread_args.remove_allefresher) {
+								sprintf(error_msg,"Some reason, we could not remove Allefresher, best to report this");
+							}
+							else {
+								sprintf(error_msg,"Some reason, we could not install rePatch, best to report this");
+							}
+							current_menu = MENU_MAIN;
+							menu_arrow = 0;
+							exit_after_done = 1;
+							goto draw_scene_direct;
+							break;
+						case THREAD_RET_REPATCH_INSTALLED:
+							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_SUCCESS;
+							if (second_thread_args.remove_allefresher) {
+								sprintf(error_msg,"Allefresher removed successfully! continue to reboot!");
+							}
+							else {
+								sprintf(error_msg,"rePatch installed successfully! continue to reboot!");
+							}
+							current_menu = MENU_MAIN;
+							menu_arrow = 0;
+							sceShellUtilLock(SCE_SHELL_UTIL_LOCK_TYPE_PS_BTN); reboot_the_vita = 1;
+							goto draw_scene_direct;
+							break;
+						default:
+							assert(0);
+					}
+					
+				}
+				goto draw_scene_direct;
+			}
+			
+			else if (yes_no_game_popup != 0) {
+				if (my_btn & BTN_CROSS) {
+					if (menu_arrow == 1) {
+						
+					}
+					else {
+						switch (yes_no_game_popup) {
+							case YES_NO_GAME_POPUP_REVERT_EBOOT:
+								strcpy(second_thread_args.title_id,global_title_id);
+								second_thread_args.title_id_folder_type = global_title_id_folder_type;
+								second_thread_id = sceKernelCreateThread(SECOND_THREAD_NAME, revert_patches_thread, SECOND_THREAD_PRIORITY, SECOND_THREAD_STACK_SIZE, 0, 0, NULL);
+								assert(second_thread_id > 0);
+								assert(sceKernelStartThread(second_thread_id, sizeof(second_thread_args), &second_args_pointer_to_avoid_copy) == 0);
+								started_a_thread = YES_NO_GAME_POPUP_REVERT_EBOOT;
+								break;
+							case YES_NO_GAME_POPUP_PATCH_GAME:
+								strcpy(second_thread_args.title_id,global_title_id);
+								second_thread_args.title_id_folder_type = global_title_id_folder_type;
+								second_thread_id = sceKernelCreateThread(SECOND_THREAD_NAME, apply_patches_thread, SECOND_THREAD_PRIORITY, SECOND_THREAD_STACK_SIZE, 0, 0, NULL);
+								assert(second_thread_id > 0);
+								assert(sceKernelStartThread(second_thread_id, sizeof(second_thread_args), &second_args_pointer_to_avoid_copy) == 0);
+								started_a_thread = YES_NO_GAME_POPUP_PATCH_GAME;
+								break;
+							case YES_NO_GAME_POPUP_INSTALL_REPATCH:
+								second_thread_args.remove_allefresher = 0;
+								second_thread_id = sceKernelCreateThread(SECOND_THREAD_NAME, install_repatch_thread, SECOND_THREAD_PRIORITY, SECOND_THREAD_STACK_SIZE, 0, 0, NULL);
+								assert(second_thread_id > 0);
+								assert(sceKernelStartThread(second_thread_id, sizeof(second_thread_args), &second_args_pointer_to_avoid_copy) == 0);
+								started_a_thread = YES_NO_GAME_POPUP_INSTALL_REPATCH;
+								break;
+							case YES_NO_GAME_POPUP_REMOVE_ALLEFRESHER:
+								second_thread_args.remove_allefresher = 1;
+								second_thread_id = sceKernelCreateThread(SECOND_THREAD_NAME, install_repatch_thread, SECOND_THREAD_PRIORITY, SECOND_THREAD_STACK_SIZE, 0, 0, NULL);
+								assert(second_thread_id > 0);
+								assert(sceKernelStartThread(second_thread_id, sizeof(second_thread_args), &second_args_pointer_to_avoid_copy) == 0);
+								started_a_thread = YES_NO_GAME_POPUP_REMOVE_ALLEFRESHER;
+								break;
+							default:
+								assert(0);
+						}
+					}
+					yes_no_game_popup = 0;
+					menu_arrow = 0;
+				}
+				menu_arrow = set_arrow(menu_arrow,my_btn,YES_NO_POPUP_ARROW);
+				goto draw_scene_direct;
+			}
+			// refresh for global_title_id anywhere, can also put other things that refresh should refresh everywhere
+			if (my_btn & BTN_TRIANGLE) {
+				DONE_A_SWITCH;
+				load_config();
+				menu_arrow = 0;
+			}
+			
+			// This might be differnt depdning on what menu but for now itll suffice
+			if (my_btn & BTN_CIRCLE) {
+				DONE_A_SWITCH;
+				menu_arrow = 0;
+				if (current_menu == MENU_BROWSE_GAMES) {
+					current_menu = MENU_PATCH_GAMES;
+				}
+				else {
+					current_menu = MENU_MAIN;
+				}
+			}
+			// normal menus
+			if (my_btn & BTN_RIGHT || my_btn & BTN_LEFT) {
+				switch (current_menu) {
+					case MENU_SELECT_URLS:
+					case MENU_EDIT_URLS:
+						DONE_A_SWITCH;
+						selected_url_index = RESET_SELECTED_URL_INDEX;
+						if (my_btn & BTN_RIGHT) {
+							if (saved_urls_txt_num >= 99) {
+								saved_urls_txt_num = 1;
+							}
+							else {
+								saved_urls_txt_num++;
+							}
+						}
+						else if (my_btn & BTN_LEFT) {
+							if (saved_urls_txt_num <= 1) {
+								saved_urls_txt_num = 99;
+							}
+							else {
+								saved_urls_txt_num--;
+							}
+						}
+						break;
+				}
+			}
+			if (my_btn & BTN_CROSS) {
+				DONE_A_SWITCH;
+				switch (current_menu) {
+					case MENU_MAIN:
+						switch (menu_arrow) {
+							case 0:
+								current_menu = MENU_SELECT_URLS;
+								break;
+							case 1:
+								current_menu = MENU_EDIT_URLS;
+								break;
+							case 2:
+								current_menu = MENU_PATCH_GAMES;
+								break;
+							case 3:
+								return 0; // exit
+								break;
+						}
+						break;
+					case MENU_PATCH_GAMES:
+						switch (menu_arrow) {
+							case 0:
+								while (1) {
+									input("Enter in a title id (example PCSF00021)",global_title_id,sizeof(global_title_id));
+									for (int i = 0; global_title_id[i] != '\0'; i++) {
+										global_title_id[i] = toupper(global_title_id[i]);
+									}
+									if (is_valid_title_id(global_title_id)) {
+										save_global_title_id_to_disk();
+										break;
+									}
+									
+								}
+								break;
+							case 1:
+								second_thread_args.normalise_digest = !second_thread_args.normalise_digest;
+								break;
+							case 2:
+								current_menu = MENU_BROWSE_GAMES;
+								menu_arrow = 0;
+								break;
+							case 3:
+							case 4:
+							case 5:
+								
+								if (!(temp_title_id_folder_type = title_id_exists(global_title_id))) {
+									error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
+									sprintf(error_msg,"We could not find %s, is the title id correct? ensure you have\nDECRYPT(SELF) on the game patch eboot.bin in FAGDec",global_title_id);
+									current_menu = MENU_PATCH_GAMES;
+									menu_arrow = 0;
+									goto draw_scene_direct;
+								}
+								if (global_title_id_folder_type == 0) {
+									global_title_id_folder_type = temp_title_id_folder_type;
+								}
+								struct UrlToPatchTo temp_show = saved_urls[selected_url_index];
+								if (global_title_id_folder_type == TITLE_ID_PATCH) {
+									strcpy(patch_or_app,"Patch");
+									sprintf(param_sfo_path,"ux0:/patch/%s/sce_sys/param.sfo",global_title_id);
+								}
+								else if (global_title_id_folder_type == TITLE_ID_APP) {
+									strcpy(patch_or_app,"App");
+									sprintf(param_sfo_path,"ux0:/app/%s/sce_sys/param.sfo",global_title_id);
+								}
+								
+								game_title = get_title_id_from_param(param_sfo_path);
+								if (game_title == 0 ) {
+									game_title = malloc(sizeof("Unknown??"));
+									strcpy(game_title,"Unknown??");
+								}
+								if (temp_show.digest[0]) {
+									sprintf(pretty_showey,"\n%s\nType: %s Title id: %s\nwith the url\n%s\nand with digest key\n%s",game_title,patch_or_app,global_title_id,temp_show.url,temp_show.digest);
+								}
+								else {
+									sprintf(pretty_showey,"\n%s\nType: %s Title id: %s\nwith the url\n%s",game_title,patch_or_app,global_title_id,temp_show.url);
+								}
+								
+								if (menu_arrow == 3) {
+									yes_no_game_popup = YES_NO_GAME_POPUP_REVERT_EBOOT;
+									sprintf(error_msg,"Do you want to revert patches on\n%s\nTitle id: %s",game_title,global_title_id);
+								}
+								
+								else {
+									if (menu_arrow == 4) {
+										second_thread_args.patch_func = &patch_eboot_elf_main_series;
+										strcpy(patch_method,PATCH_METHOD_MAIN_SERIES);
+									}
+									else if (menu_arrow == 5) {
+										second_thread_args.patch_func = &patch_eboot_elf_vita_cross_controller_app;
+										strcpy(patch_method,PATCH_METHOD_VITA_CROSS_CONTROLLER_APP);
+									}
+									else {
+										second_thread_args.patch_func = &patch_eboot_elf_main_series;
+										strcpy(patch_method,"you should never see this");
+									}
+									
+									yes_no_game_popup = YES_NO_GAME_POPUP_PATCH_GAME;
+									sprintf(error_msg,"Do you want to patch (%s)%s",patch_method,pretty_showey);
+								}
+								free(game_title);
+								
+								current_menu = MENU_PATCH_GAMES;
+								menu_arrow = 1;
+								goto draw_scene_direct;
+								break;
+						}
+						break;
+					case MENU_SELECT_URLS:
+						selected_url_index = (menu_arrow == selected_url_index) ? RESET_SELECTED_URL_INDEX : menu_arrow;
+						break;
+					case MENU_EDIT_URLS:
+						selected_url_index = RESET_SELECTED_URL_INDEX;
+						temp_editing_url = saved_urls[menu_arrow/2];
+						
+						if (menu_arrow % 2 == 0) { // url menu_arrow even case
+							strcpy(editing_url_text_buffer,temp_editing_url.url);
+							input("Enter in a URL",editing_url_text_buffer,sizeof(temp_editing_url.url));
+							
+							strcpy(saved_urls[menu_arrow/2].url,editing_url_text_buffer);
+							strcpy(saved_urls[menu_arrow/2].digest,temp_editing_url.digest);
+						}
+						else { // digest menu_arrow odd case
+							strcpy(editing_url_text_buffer,temp_editing_url.digest);
+							input("Enter in a digest key, put in CustomServerDigest if this is a refresh server otherwise leave empty",editing_url_text_buffer,sizeof(temp_editing_url.digest));
+							strcpy(saved_urls[menu_arrow/2].digest,editing_url_text_buffer);
+							strcpy(saved_urls[menu_arrow/2].url,temp_editing_url.url);
+						}
+						
+						write_saved_urls(saved_urls_txt_num);
+						
+						break;
+					case MENU_BROWSE_GAMES:
+						strcpy(global_title_id,browse_games_buffer[menu_arrow - browse_games_buffer_start].title_id);
+						global_title_id_folder_type = browse_games_buffer[menu_arrow - browse_games_buffer_start].title_id_folder_type;
+						save_global_title_id_to_disk();	
+						break;
+				}
+				// put code here if you dont want the menu arrow to reset
+				if (current_menu == MENU_BROWSE_GAMES) {
+				
+				}
+				else {
+					menu_arrow = 0;
+				}
+			}
+			switch (current_menu) {
+				case MENU_MAIN:
+					if (has_done_a_switch) {
+						// do first time code here
+						has_done_a_switch = 0;
+					}
+					
+					menu_arrow = set_arrow(menu_arrow,my_btn,MENU_MAIN_ARROW);
+
+					break;
+				
+				case MENU_PATCH_GAMES:
+					if (has_done_a_switch) {
+						// do first time code here
+						if (!is_a_url_selected()) {
+							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
+							strcpy(error_msg,"Please select a url in Select Url menu");
+							current_menu = MENU_MAIN;
+							menu_arrow = 0;
+							goto draw_scene_direct;
+						}
+						
+						has_done_a_switch = 0;
+					}
+					
+					menu_arrow = set_arrow(menu_arrow,my_btn,MENU_PATCH_GAMES_ARROW);
+
+					break;
+				
+				case MENU_EDIT_URLS:
+				case MENU_SELECT_URLS:
+					if (has_done_a_switch) {
+						load_saved_urls(saved_urls_txt_num);
+						
+						has_done_a_switch = 0;
+					}
+					if (current_menu == MENU_EDIT_URLS) {
+						menu_arrow = set_arrow(menu_arrow,my_btn,MENU_EDIT_URLS_ARROW);
+					}
+					else {
+						menu_arrow = set_arrow(menu_arrow,my_btn,MENU_SELECT_URLS_ARROW);
+					}
+					break;
+				
+				case MENU_BROWSE_GAMES:
+					if (has_done_a_switch) {
+						browse_games_arrow = total_count_of_patchable_games(0,0xFFFFFFFF) - 1;
+						if (menu_arrow == 0) {
+							browse_games_buffer_start = 0;
+							browse_games_buffer_size = load_patchable_games(browse_games_buffer,browse_games_buffer_start,browse_games_buffer_max_size);
+						}
+						has_done_a_switch = 0;
+					}
+					menu_arrow = set_arrow(menu_arrow,my_btn,browse_games_arrow);
+					if (menu_arrow < browse_games_buffer_start) {
+						browse_games_buffer_start -= browse_games_buffer_max_size;
+						browse_games_buffer_size = load_patchable_games(browse_games_buffer,browse_games_buffer_start,browse_games_buffer_max_size);
+					}
+					else if (menu_arrow > (browse_games_buffer_start + browse_games_buffer_max_size)-1) {
+						browse_games_buffer_start += browse_games_buffer_max_size;
+						browse_games_buffer_size = load_patchable_games(browse_games_buffer,browse_games_buffer_start,browse_games_buffer_max_size);
+					}
+					
+					break;
+
+			}
+
+		}
+		draw_scene_direct:
+		old_btn = my_btn;
+		draw_scene(font,current_menu,menu_arrow,is_alive_toggle_thing,error_yet_to_press_ok,error_msg,yes_no_game_popup,
+		started_a_thread,saved_urls_txt_num,second_thread_args.normalise_digest,
+		browse_games_buffer,browse_games_buffer_size,browse_games_buffer_start,global_title_id,global_title_id_folder_type
+		);
+		is_alive_toggle_thing = !is_alive_toggle_thing;
+		
+        vita2d_end_drawing();
+        vita2d_swap_buffers();
+	}
+	vita2d_fini();
+	vita2d_free_font(font);
+	return 0;
+}

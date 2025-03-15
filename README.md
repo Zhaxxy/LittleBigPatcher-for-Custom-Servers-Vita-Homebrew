@@ -1,5 +1,14 @@
-# LittleBigPatcher-for-Custom-Servers-Vita-Homebrew-
+---
+title: LittleBigPatcher for Custom Servers (Vita Homebrew)
+---
+
+# LittleBigPatcher for Custom Servers (Vita Homebrew)
  A simple way to patch your LittleBigPlanet games to connect to custom servers with only your Vita!
+
+# source code
+[https://github.com/LittleBigPatcherTeam/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew](https://github.com/LittleBigPatcherTeam/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew)
+# Releases (.vpk downloads)
+[https://github.com/LittleBigPatcherTeam/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew/releases](https://github.com/LittleBigPatcherTeam/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew/releases)
 
 # FAGDec usage for DECRYPT(SELF)
 [Follow this guide](https://littlebigpatcherteam.github.io/2025/03/14/FAGDec-guide.html)

@@ -7,6 +7,7 @@ struct SecondThreadArgs {
     bool has_finished;
 	int current_state;
 	bool normalise_digest;
+	int offset_based_patch;
 	bool remove_allefresher;
 	PATCH_EBOOT_FUNC_SIGNATURE(patch_func);
 	int title_id_folder_type;

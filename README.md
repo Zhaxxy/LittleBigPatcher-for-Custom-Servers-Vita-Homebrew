@@ -27,3 +27,5 @@ For providing information on how to parse the tai config.txt to install repatch 
 For the `repatch_ex.skprx` file which the app can install automatically
 ## [FAGDec](https://github.com/TeamFAPS/PSVita-RE-tools/tree/master/FAGDec/src)
 Allowing this to be possible, and hopefully in future will be coded in this app directly during patching process
+## [lbpv_free_dlc.py](https://gist.github.com/Zhaxxy/8bc5994881678ef15739fd6d51465b3b)
+For making the orginal dlc remover and suggesting being add to this patcher (it is not piracy based)

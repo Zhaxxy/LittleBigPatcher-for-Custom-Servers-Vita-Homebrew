@@ -8,7 +8,7 @@ A simple way to patch your LittleBigPlanet games to connect to custom servers wi
 
 # source code
 [https://github.com/LittleBigPatcherTeam/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew](https://github.com/LittleBigPatcherTeam/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew)
-# Latest release (.vpk download)
+# Latest release (.vpk download) (can download directly on Vita with [Downloader Enabler plugin](http://store.brewology.com/vita/get/homebrew.php?id=373&fid=3602))
 [http://bit.ly/patchvita](http://bit.ly/patchvita)
 
 # FAGDec usage for DECRYPT(SELF)

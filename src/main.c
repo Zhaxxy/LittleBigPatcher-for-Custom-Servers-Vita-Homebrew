@@ -1446,6 +1446,9 @@ int main(int argc, char *argv[]) {
 		if (strncmp(func_name,"patch_",strlen("patch_")) != 0) {
 			goto lua_pop_continue;
 		}
+		if (strncmp(func_name,"patch_ps3",strlen("patch_ps3")) == 0) {
+			goto lua_pop_continue;
+		}
 		// dont accept `patch_` named things
 		fun_name_len = strlen(func_name);
 		if (fun_name_len == strlen("patch_")) {

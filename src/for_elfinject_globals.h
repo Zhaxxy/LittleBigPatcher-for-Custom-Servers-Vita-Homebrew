@@ -4,6 +4,9 @@
 #include "types_for_my_patcher_app.h"
 #include "patching_eboot_elf_code.h"
 
+#define PATCH_LUA_SIZE 256
+#define PATCH_METHOD_LUA_STRING_SIZE 512
+
 #define OFFSET_BASED_PATCH_VITA_REMOVE_DLC_LOCKS 1
 
 bool does_file_exist(char * filename);
@@ -14,7 +17,7 @@ struct SecondThreadArgs {
 	bool normalise_digest;
 	int offset_based_patch;
 	bool remove_allefresher;
-	PATCH_EBOOT_FUNC_SIGNATURE(patch_func);
+	char patch_lua_name[PATCH_LUA_SIZE];
 	int title_id_folder_type;
     char title_id[sizeof("BCES12345")];
 };

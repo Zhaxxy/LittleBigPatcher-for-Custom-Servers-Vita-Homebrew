@@ -3,13 +3,16 @@
 #include "types_for_my_patcher_app.h"
 #include "patching_eboot_elf_code.h"
 
+#define PATCH_LUA_SIZE 256
+#define PATCH_METHOD_LUA_STRING_SIZE 512
+
 struct SecondThreadArgs {
     bool has_finished;
 	int current_state;
 	bool normalise_digest;
 	int offset_based_patch;
 	bool remove_allefresher;
-	PATCH_EBOOT_FUNC_SIGNATURE(patch_func);
+	char patch_lua_name[PATCH_LUA_SIZE];
 	int title_id_folder_type;
     char title_id[sizeof("BCES12345")];
 };

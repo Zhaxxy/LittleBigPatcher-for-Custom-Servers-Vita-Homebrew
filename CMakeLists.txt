@@ -64,6 +64,43 @@ add_executable(${PROJECT_NAME}
   
   src/elf_injector/elf_inject.c
   src/elf_injector/sha256.c
+  
+  # i had to edit the source/lua-5.4.7/src a bit, rename the main functions in lua.c and luac.c
+  # from https://www.lua.org/ftp/lua-5.4.7.tar.gz
+  src/lua-5.4.7/src/ldebug.c
+  src/lua-5.4.7/src/lcorolib.c
+  src/lua-5.4.7/src/loslib.c
+  src/lua-5.4.7/src/lmem.c
+  src/lua-5.4.7/src/lauxlib.c
+  src/lua-5.4.7/src/lzio.c
+  src/lua-5.4.7/src/lctype.c
+  src/lua-5.4.7/src/lstring.c
+  src/lua-5.4.7/src/ltm.c
+  src/lua-5.4.7/src/lparser.c
+  src/lua-5.4.7/src/lstrlib.c
+  src/lua-5.4.7/src/llex.c
+  src/lua-5.4.7/src/ltable.c
+  src/lua-5.4.7/src/lobject.c
+  src/lua-5.4.7/src/linit.c
+  src/lua-5.4.7/src/lvm.c
+  src/lua-5.4.7/src/lapi.c
+  src/lua-5.4.7/src/lstate.c
+  src/lua-5.4.7/src/lopcodes.c
+  src/lua-5.4.7/src/loadlib.c
+  src/lua-5.4.7/src/lmathlib.c
+  src/lua-5.4.7/src/liolib.c
+  src/lua-5.4.7/src/luac.c
+  src/lua-5.4.7/src/lfunc.c
+  src/lua-5.4.7/src/ltablib.c
+  src/lua-5.4.7/src/ldblib.c
+  src/lua-5.4.7/src/lua.c
+  src/lua-5.4.7/src/lbaselib.c
+  src/lua-5.4.7/src/lutf8lib.c
+  src/lua-5.4.7/src/lundump.c
+  src/lua-5.4.7/src/ldump.c
+  src/lua-5.4.7/src/lgc.c
+  src/lua-5.4.7/src/lcode.c
+  src/lua-5.4.7/src/ldo.c
 )
 
 # Library to link to (drop the -l prefix). This will mostly be stubs.
@@ -98,4 +135,6 @@ vita_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
   FILE sce_sys/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
   FILE repatch_ex.skprx repatch_ex.skprx # https://github.com/SonicMastr/rePatch-reLoaded/releases/tag/v2.1
   FILE fagdec_vpk/Go-ahead-and-install_me.vpk fagdec_vpk/Go-ahead-and-install_me.vpk # https://github.com/TeamFAPS/PSVita-RE-tools/tree/178948c0866b6ad3246ab607886dd6b620628b86/FAGDec/build
-)
+
+  FILE patch.lua patch.lua
+  )

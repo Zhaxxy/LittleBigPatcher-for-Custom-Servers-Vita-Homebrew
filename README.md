@@ -14,6 +14,9 @@ A simple way to patch your LittleBigPlanet games to connect to custom servers wi
 # FAGDec usage for DECRYPT(SELF)
 [Follow this guide](https://littlebigpatcherteam.github.io/2025/03/14/FAGDec-guide.html)
 
+# patch.lua
+patch.lua is licenced with the MIT Licence, so you can edit and change it all you like, refer to https://github.com/LittleBigPatcherTeam/LittleBigElfPatcherLua for Licence file
+
 # README TODO
 I need to do this
 # Credits (If i missed anyone please let me know)

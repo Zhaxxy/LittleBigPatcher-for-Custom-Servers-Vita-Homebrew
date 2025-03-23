@@ -1592,7 +1592,7 @@ int main(int argc, char *argv[]) {
 							break;
 						case THREAD_RET_EBOOT_BACKUP_FAILED:
 							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
-							sprintf(error_msg,"Some reason, we could not backup your EBOOT.BIN on %s",pretty_showey);
+							sprintf(error_msg,"Some reason, we could not backup your eboot.bin on %s",pretty_showey);
 							current_menu = MENU_PATCH_GAMES;
 							menu_arrow = 0;
 							exit_after_done = 1;
@@ -1600,7 +1600,7 @@ int main(int argc, char *argv[]) {
 							break;
 						case THREAD_RET_EBOOT_DECRYPT_FAILED:
 							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
-							sprintf(error_msg,"Could not decrypt EBOOT.BIN on%s",pretty_showey);
+							sprintf(error_msg,"Could not decrypt eboot.bin on%s",pretty_showey);
 							
 							current_menu = MENU_PATCH_GAMES;
 							menu_arrow = 0;
@@ -1609,7 +1609,7 @@ int main(int argc, char *argv[]) {
 							break;
 						case THREAD_RET_EBOOT_PATCH_FAILED:
 							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
-							sprintf(error_msg,"Could not patch (%s) EBOOT.BIN on%s\nplease report your game",patch_method,pretty_showey);
+							sprintf(error_msg,"Could not patch (%s) eboot.bin on%s\nplease report your game",patch_method,pretty_showey);
 							current_menu = MENU_PATCH_GAMES;
 							menu_arrow = 0;
 							exit_after_done = 1;

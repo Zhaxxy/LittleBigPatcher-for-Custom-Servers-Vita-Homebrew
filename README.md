@@ -29,3 +29,9 @@ For the `repatch_ex.skprx` file which the app can install automatically
 Allowing this to be possible, and hopefully in future will be coded in this app directly during patching process
 ## [lbpv_free_dlc.py](https://gist.github.com/Zhaxxy/8bc5994881678ef15739fd6d51465b3b)
 For making the orginal dlc remover and suggesting being add to this patcher (it is not piracy based)
+
+<div id='lua-credit'/>
+
+## [Lua](https://www.lua.org/ftp/lua-5.4.7.tar.gz)
+
+In no way am i saying i made lua lol, please refer to [lua](https://www.lua.org/license.html) but i did delete some unused files from the tar.gz to save space, and had to rename 2 functions named `main` to `luac_main` and `lua_main`

@@ -945,7 +945,8 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	lua_pushboolean(L,args->normalise_digest);
 	lua_pushstring(L,WORKING_DIR);
     if (lua_pcall(L, 5, 1, 0) != LUA_OK) {
-        sceClibPrintf("Error calling function: %s\n", lua_tostring(L, -1));
+        // gonna pop the error later
+		// sceClibPrintf("Error calling function: %s\n", lua_tostring(L, -1));
 		args->has_finished = 1;
 		sceKernelExitThread(THREAD_RET_EBOOT_PATCH_FAILED);
 		return THREAD_RET_EBOOT_PATCH_FAILED;
@@ -1609,7 +1610,7 @@ int main(int argc, char *argv[]) {
 							break;
 						case THREAD_RET_EBOOT_PATCH_FAILED:
 							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
-							sprintf(error_msg,"Could not patch (%s) eboot.bin on%s\nplease report your game",patch_method,pretty_showey);
+							sprintf(error_msg,"Could not patch (%s) eboot.bin on%s\n%s\nplease report your game",patch_method,pretty_showey,lua_tostring(L, -1)+(strlen(PATCH_LUA_FILE)-strlen(PATCH_LUA_FILE_NAME)));
 							current_menu = MENU_PATCH_GAMES;
 							menu_arrow = 0;
 							exit_after_done = 1;

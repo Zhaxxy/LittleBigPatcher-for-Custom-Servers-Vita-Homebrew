@@ -1,12 +1,13 @@
 #ifndef SAVE_FOLDERS_H_   /* Include guard */
 #define SAVE_FOLDERS_H_
 
-#define VERSION_NUM_STR "v2.005"
+#define VERSION_NUM_STR "v2.006"
 
 #define ROOT_DIR "ux0:/data/lbpatcher_stuff/"
 #define WORKING_DIR ROOT_DIR "temp_files/"
 #define COLOUR_CONFIG_FILE ROOT_DIR "colours_config.txt"
-#define PATCH_LUA_FILE "app0:/patch.lua"
+#define PATCH_LUA_FILE_NAME "patch.lua"
+#define PATCH_LUA_FILE "app0:/" PATCH_LUA_FILE_NAME
 
 
 #define DEFAULT_URLS "http://lighthouse.lbpunion.com/LITTLEBIGPLANETPS3_XML\n"\

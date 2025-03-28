@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <stdlib.h>
+#include <time.h>
 #include <psp2/power.h> // for scePowerRequestColdReset
 #include <psp2/shellutil.h>  // for sceShellUtilLock
 #include <psp2/apputil.h>  // for sceAppUtilReceiveAppEvent and SceAppUtilAppEventParam
@@ -1028,9 +1029,144 @@ int vita2d_font_draw_textf_with_bg(vita2d_font *font,u32 colour, u32 bg_colour,i
 #define DrawString(x, y, input_str) \
     vita2d_font_draw_textf_with_bg(font, font_colour, bg_colour, x, y, TEXT_SIZE, input_str)
 
+#define U32_SWAP_FOR_COLOUR(num) ((u32)(((((u32)num) & 0xff000000) >> 24) | \
+		   ((((u32)num) & 0x00ff0000) >> 8 ) | \
+		   ((((u32)num) & 0x0000ff00) << 8 ) | \
+		   ((((u32)num) & 0x000000ff) << 24)))
+
+u32 internal_rainbow_colour_state = 0;
+int internal_rainbow_colour_cur_index = 0;
+/*
+smooth transition for 
+
+#FF0000
+#00FF00
+#0000FF
+#00FFFF
+#FF00FF
+
+100 colours total, for end loop back to red at top
+*/
+const u32 rainbow_colours[] = {
+	U32_SWAP_FOR_COLOUR(0xff0000ff),
+	U32_SWAP_FOR_COLOUR(0xf20d00ff),
+	U32_SWAP_FOR_COLOUR(0xe41b00ff),
+	U32_SWAP_FOR_COLOUR(0xd72800ff),
+	U32_SWAP_FOR_COLOUR(0xc93600ff),
+	U32_SWAP_FOR_COLOUR(0xbc4300ff),
+	U32_SWAP_FOR_COLOUR(0xae5100ff),
+	U32_SWAP_FOR_COLOUR(0xa15e00ff),
+	U32_SWAP_FOR_COLOUR(0x946b00ff),
+	U32_SWAP_FOR_COLOUR(0x867900ff),
+	U32_SWAP_FOR_COLOUR(0x798600ff),
+	U32_SWAP_FOR_COLOUR(0x6b9400ff),
+	U32_SWAP_FOR_COLOUR(0x5ea100ff),
+	U32_SWAP_FOR_COLOUR(0x51ae00ff),
+	U32_SWAP_FOR_COLOUR(0x43bc00ff),
+	U32_SWAP_FOR_COLOUR(0x36c900ff),
+	U32_SWAP_FOR_COLOUR(0x28d700ff),
+	U32_SWAP_FOR_COLOUR(0x1be400ff),
+	U32_SWAP_FOR_COLOUR(0x0df200ff),
+	U32_SWAP_FOR_COLOUR(0x00ff00ff),
+	U32_SWAP_FOR_COLOUR(0x00ff00ff),
+	U32_SWAP_FOR_COLOUR(0x00f20dff),
+	U32_SWAP_FOR_COLOUR(0x00e41bff),
+	U32_SWAP_FOR_COLOUR(0x00d728ff),
+	U32_SWAP_FOR_COLOUR(0x00c936ff),
+	U32_SWAP_FOR_COLOUR(0x00bc43ff),
+	U32_SWAP_FOR_COLOUR(0x00ae51ff),
+	U32_SWAP_FOR_COLOUR(0x00a15eff),
+	U32_SWAP_FOR_COLOUR(0x00946bff),
+	U32_SWAP_FOR_COLOUR(0x008679ff),
+	U32_SWAP_FOR_COLOUR(0x007986ff),
+	U32_SWAP_FOR_COLOUR(0x006b94ff),
+	U32_SWAP_FOR_COLOUR(0x005ea1ff),
+	U32_SWAP_FOR_COLOUR(0x0051aeff),
+	U32_SWAP_FOR_COLOUR(0x0043bcff),
+	U32_SWAP_FOR_COLOUR(0x0036c9ff),
+	U32_SWAP_FOR_COLOUR(0x0028d7ff),
+	U32_SWAP_FOR_COLOUR(0x001be4ff),
+	U32_SWAP_FOR_COLOUR(0x000df2ff),
+	U32_SWAP_FOR_COLOUR(0x0000ffff),
+	U32_SWAP_FOR_COLOUR(0x0000ffff),
+	U32_SWAP_FOR_COLOUR(0x000dffff),
+	U32_SWAP_FOR_COLOUR(0x001bffff),
+	U32_SWAP_FOR_COLOUR(0x0028ffff),
+	U32_SWAP_FOR_COLOUR(0x0036ffff),
+	U32_SWAP_FOR_COLOUR(0x0043ffff),
+	U32_SWAP_FOR_COLOUR(0x0051ffff),
+	U32_SWAP_FOR_COLOUR(0x005effff),
+	U32_SWAP_FOR_COLOUR(0x006bffff),
+	U32_SWAP_FOR_COLOUR(0x0079ffff),
+	U32_SWAP_FOR_COLOUR(0x0086ffff),
+	U32_SWAP_FOR_COLOUR(0x0094ffff),
+	U32_SWAP_FOR_COLOUR(0x00a1ffff),
+	U32_SWAP_FOR_COLOUR(0x00aeffff),
+	U32_SWAP_FOR_COLOUR(0x00bcffff),
+	U32_SWAP_FOR_COLOUR(0x00c9ffff),
+	U32_SWAP_FOR_COLOUR(0x00d7ffff),
+	U32_SWAP_FOR_COLOUR(0x00e4ffff),
+	U32_SWAP_FOR_COLOUR(0x00f2ffff),
+	U32_SWAP_FOR_COLOUR(0x00ffffff),
+	U32_SWAP_FOR_COLOUR(0x00ffffff),
+	U32_SWAP_FOR_COLOUR(0x0df2ffff),
+	U32_SWAP_FOR_COLOUR(0x1be4ffff),
+	U32_SWAP_FOR_COLOUR(0x28d7ffff),
+	U32_SWAP_FOR_COLOUR(0x36c9ffff),
+	U32_SWAP_FOR_COLOUR(0x43bcffff),
+	U32_SWAP_FOR_COLOUR(0x51aeffff),
+	U32_SWAP_FOR_COLOUR(0x5ea1ffff),
+	U32_SWAP_FOR_COLOUR(0x6b94ffff),
+	U32_SWAP_FOR_COLOUR(0x7986ffff),
+	U32_SWAP_FOR_COLOUR(0x8679ffff),
+	U32_SWAP_FOR_COLOUR(0x946bffff),
+	U32_SWAP_FOR_COLOUR(0xa15effff),
+	U32_SWAP_FOR_COLOUR(0xae51ffff),
+	U32_SWAP_FOR_COLOUR(0xbc43ffff),
+	U32_SWAP_FOR_COLOUR(0xc936ffff),
+	U32_SWAP_FOR_COLOUR(0xd728ffff),
+	U32_SWAP_FOR_COLOUR(0xe41bffff),
+	U32_SWAP_FOR_COLOUR(0xf20dffff),
+	U32_SWAP_FOR_COLOUR(0xff00ffff),
+	U32_SWAP_FOR_COLOUR(0xff00ffff),
+	U32_SWAP_FOR_COLOUR(0xff00f2ff),
+	U32_SWAP_FOR_COLOUR(0xff00e4ff),
+	U32_SWAP_FOR_COLOUR(0xff00d7ff),
+	U32_SWAP_FOR_COLOUR(0xff00c9ff),
+	U32_SWAP_FOR_COLOUR(0xff00bcff),
+	U32_SWAP_FOR_COLOUR(0xff00aeff),
+	U32_SWAP_FOR_COLOUR(0xff00a1ff),
+	U32_SWAP_FOR_COLOUR(0xff0094ff),
+	U32_SWAP_FOR_COLOUR(0xff0086ff),
+	U32_SWAP_FOR_COLOUR(0xff0079ff),
+	U32_SWAP_FOR_COLOUR(0xff006bff),
+	U32_SWAP_FOR_COLOUR(0xff005eff),
+	U32_SWAP_FOR_COLOUR(0xff0051ff),
+	U32_SWAP_FOR_COLOUR(0xff0043ff),
+	U32_SWAP_FOR_COLOUR(0xff0036ff),
+	U32_SWAP_FOR_COLOUR(0xff0028ff),
+	U32_SWAP_FOR_COLOUR(0xff001bff),
+	U32_SWAP_FOR_COLOUR(0xff000dff),
+};
 
 
-#define SetFontColor(font_colour_in,bg_colour_in) bg_colour = bg_colour_in; font_colour = font_colour_in
+
+#define RAINBOW_LAST_INDEX (sizeof(rainbow_colours) / sizeof(rainbow_colours[0]))-1
+
+u32 get_next_rainbow_colour() {
+	struct timespec current_time;
+	clock_gettime(CLOCK_REALTIME, &current_time);
+	if (((u32)current_time.tv_nsec - internal_rainbow_colour_state) >= (1000000*10)) {
+		internal_rainbow_colour_state = (u32)current_time.tv_nsec;
+		internal_rainbow_colour_cur_index++;
+	}
+	if (internal_rainbow_colour_cur_index > RAINBOW_LAST_INDEX) {
+		internal_rainbow_colour_cur_index = 0;
+	}
+	return rainbow_colours[internal_rainbow_colour_cur_index];
+}
+
+#define SetFontColor(font_colour_in,bg_colour_in) bg_colour = (bg_colour_in == 522001152) ? rainbow_colour : bg_colour_in; font_colour = (font_colour_in == 522001152) ? rainbow_colour : font_colour_in
 
 #define GetFontX() global_current_x
 void draw_scene(vita2d_font *font, u8 current_menu,int menu_arrow, bool is_alive_toggle_thing, u8 error_yet_to_press_ok, char* error_msg, int yes_no_game_popup, int started_a_thread, int thread_current_state,
@@ -1039,18 +1175,23 @@ struct TitleIdAndGameName browse_games_buffer[], u32 browse_games_buffer_size, u
 char * global_title_id, int global_title_id_folder_type,
 int method_count, struct LuaPatchDetails patch_lua_names[]
 ) {
+	u32 rainbow_colour;
 	int x_get_font;
 	int x = 0;
 	int y = CHARACTER_HEIGHT;
 	u32 bg_colour;
 	u32 font_colour;
 	
+	rainbow_colour = get_next_rainbow_colour();
+	
 	bg_colour = TITLE_BG_COLOUR;
 	font_colour = TITLE_FONT_COLOUR;
 	
 	vita2d_set_clear_color(BACKGROUND_COLOUR);
 	
-	vita2d_font_draw_textf_with_bg(font,TITLE_FONT_COLOUR,TITLE_BG_COLOUR,START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT,y,TEXT_SIZE,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN" to refresh things if ->%d<- is a solid 1 or 0, app is frozen " VERSION_NUM_STR,is_alive_toggle_thing);
+	SetFontColor(TITLE_FONT_COLOUR, TITLE_BG_COLOUR);
+	
+	DrawFormatString(START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN" to refresh things if ->%d<- is a solid 1 or 0, app is frozen " VERSION_NUM_STR,is_alive_toggle_thing);
 	
 	if (error_yet_to_press_ok != 0) {
 		y += CHARACTER_HEIGHT;

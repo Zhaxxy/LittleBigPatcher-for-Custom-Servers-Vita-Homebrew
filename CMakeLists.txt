@@ -137,4 +137,6 @@ vita_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
   FILE fagdec_vpk/Go-ahead-and-install_me.vpk fagdec_vpk/Go-ahead-and-install_me.vpk # https://github.com/TeamFAPS/PSVita-RE-tools/tree/178948c0866b6ad3246ab607886dd6b620628b86/FAGDec/build
 
   FILE patch.lua patch.lua
+  FILE ps3_test_patch_file.elf ps3_test_patch_file.elf
+  FILE vita_test_patch_file.velf vita_test_patch_file.velf
   )

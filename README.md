@@ -11,11 +11,7 @@ A simple way to patch your LittleBigPlanet games to connect to custom servers wi
 # Latest release (.vpk download) (can download directly on Vita with [Downloader Enabler plugin](http://github.com/TheOfficialFloW/VitaTweaks/releases/download/DownloadEnabler/download_enabler.suprx))
 [http://bit.ly/patchvita](http://bit.ly/patchvita)
 
-
-
-# patch.lua
-`patch.lua` is licenced with the MIT Licence, so you can edit and change it all you like, refer to [https://github.com/LittleBigPatcherTeam/LittleBigElfPatcherLua](https://github.com/LittleBigPatcherTeam/LittleBigElfPatcherLua) for Licence file
-# Instructions
+# How to use?
 
 ## Prerequisites
 1. **FrenchAmericanGames Decrypter (FAGDec):** [Download here](https://github.com/CelesteBlue-dev/PSVita-RE-tools/raw/master/FAGDec/build/FAGDec.vpk).
@@ -50,6 +46,10 @@ Follow the detailed guide on decrypting your game using FAGDec: [FAGDec Guide](h
 6. Wait for the patching process to complete.
 
 You are now ready to play LittleBigPlanet with your custom server!
+
+# patch.lua
+`patch.lua` is licenced with the MIT Licence, so you can edit and change it all you like, refer to [https://github.com/LittleBigPatcherTeam/LittleBigElfPatcherLua](https://github.com/LittleBigPatcherTeam/LittleBigElfPatcherLua) for Licence file
+# Instructions
 
 # Credits (If i missed anyone please let me know)
 ## [VitaShell](https://github.com/TheOfficialFloW/VitaShell)

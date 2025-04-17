@@ -2,7 +2,6 @@
 #define FOR_ELFINJECT_GLOBALS_H_
 
 #include "types_for_my_patcher_app.h"
-#include "patching_eboot_elf_code.h"
 
 #define PATCH_LUA_SIZE 256
 #define PATCH_METHOD_LUA_STRING_SIZE 512

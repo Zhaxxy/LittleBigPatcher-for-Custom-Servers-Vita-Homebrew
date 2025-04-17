@@ -54,7 +54,6 @@ add_executable(${PROJECT_NAME}
   src/colours_config.c
   src/read_sfo.c
   src/for_elfinject_globals.c
-  src/patching_eboot_elf_code.c
   src/text_input_vita.c
   src/copyfile_thing.c
 

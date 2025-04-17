@@ -1,7 +1,6 @@
 #include <stdio.h>
 
-#include "types_for_my_patcher_app.h"
-#include "patching_eboot_elf_code.h"
+#include "types_for_my_patcher_app.h"'
 
 #define PATCH_LUA_SIZE 256
 #define PATCH_METHOD_LUA_STRING_SIZE 512

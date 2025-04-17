@@ -55,10 +55,8 @@ add_executable(${PROJECT_NAME}
   src/read_sfo.c
   src/for_elfinject_globals.c
   src/patching_eboot_elf_code.c
-  src/patching_eboot_elf_vita_dlc_lock_removal.c
   src/text_input_vita.c
   src/copyfile_thing.c
-  src/sha1.c
 
   src/vita-unmake-fself/vita_unmake_fself.c
   

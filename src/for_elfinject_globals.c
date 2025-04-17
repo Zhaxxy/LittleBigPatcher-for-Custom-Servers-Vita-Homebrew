@@ -10,7 +10,6 @@ struct SecondThreadArgs {
     bool has_finished;
 	int current_state;
 	bool normalise_digest;
-	int offset_based_patch;
 	bool remove_allefresher;
 	char patch_lua_name[PATCH_LUA_SIZE];
 	int title_id_folder_type;

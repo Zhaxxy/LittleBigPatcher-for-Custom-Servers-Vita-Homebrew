@@ -1365,7 +1365,7 @@ int method_count, struct LuaPatchDetails patch_lua_names[]
 			bg_colour = (menu_arrow == 2) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 			font_colour = (offset_based_patch == OFFSET_BASED_PATCH_VITA_REMOVE_DLC_LOCKS) ? TURNED_ON_FONT_COLOUR : SELECTABLE_NORMAL_FONT_COLOUR;
 			SetFontColor(font_colour, bg_colour);
-			DrawFormatString(x,y,"Unlock all DLC (1.22 only and also not piracy based)");
+			DrawFormatString(x,y,"Placeholder");
 			y += CHARACTER_HEIGHT;
 
 			bg_colour = (menu_arrow == 3) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
@@ -1964,7 +1964,7 @@ int main(int argc, char *argv[]) {
 									second_thread_args.offset_based_patch = 0;
 								}
 								else {
-									second_thread_args.offset_based_patch = OFFSET_BASED_PATCH_VITA_REMOVE_DLC_LOCKS;
+									second_thread_args.offset_based_patch = 0;
 								}
 								break;
 							case 3:

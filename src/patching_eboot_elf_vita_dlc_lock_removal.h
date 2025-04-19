@@ -1,3 +1,5 @@
+// this code does not actually do anything
+
 #ifndef PATCHING_EBOOT_ELF_VITA_DLC_LOCK_REMOVAL_H_   /* Include guard */
 #define PATCHING_EBOOT_ELF_VITA_DLC_LOCK_REMOVAL_H_
 

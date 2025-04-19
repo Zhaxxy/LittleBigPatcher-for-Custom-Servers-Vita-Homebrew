@@ -25,11 +25,13 @@
 #include "text_input_vita.h"
 #include "save_folders.h"
 #include "colours_config.h"
+#include "patching_eboot_elf_vita_dlc_lock_removal.h"
 #include "for_elfinject_globals.h"
 #include "read_sfo.h"
 #include "copyfile_thing.h"
 #include "vita-unmake-fself/vita_unmake_fself.h"
 #include "elf_injector/elf_inject.h"
+#include "sha1.h" // for checking if eboot.bin is known
 
 #include "lua-5.4.7/src/lua.h"
 #include "lua-5.4.7/src/lauxlib.h"
@@ -76,11 +78,13 @@
 #define THREAD_CURRENT_STATE_CLEANING_WORKSPACE 1
 #define THREAD_CURRENT_STATE_COPYING_FROM_FAGDEC 2
 #define THREAD_CURRENT_STATE_EBOOT_DECRYPT 3
-#define THREAD_CURRENT_STATE_START_PATCHING 4
-#define THREAD_CURRENT_STATE_DONE_PATCHING 5
-#define THREAD_CURRENT_STATE_EBOOT_ENCRYPT 6
-#define THREAD_CURRENT_STATE_MAKE_REPATCH_FOLDERS 7
-#define THREAD_CURRENT_STATE_FINAL_COPY_EBOOT_TO_REPATCH 8
+#define THREAD_CURRENT_STATE_CALCING_EBOOT_ELF_SHA1 4
+#define THREAD_CURRENT_STATE_PATCHING_VITA_DLC_UNLOCK 5
+#define THREAD_CURRENT_STATE_START_PATCHING 6
+#define THREAD_CURRENT_STATE_DONE_PATCHING 8
+#define THREAD_CURRENT_STATE_EBOOT_ENCRYPT 9
+#define THREAD_CURRENT_STATE_MAKE_REPATCH_FOLDERS 10
+#define THREAD_CURRENT_STATE_FINAL_COPY_EBOOT_TO_REPATCH 11
 
 #define ERROR_YET_TO_PRESS_OK_SUCCESS 2
 #define ERROR_YET_TO_PRESS_OK_FAIL 1
@@ -95,7 +99,7 @@
 #define MENU_EDIT_URLS_ARROW (saved_urls_count-1)*2+1
 
 
-#define MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES 4-1
+#define MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES 5-1
 #define MINUS_MENU_ARROW_AMNT_TO_GET_PATCH_LUA_INDEX MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES + 1
 #define MENU_PATCH_GAMES_ARROW MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES+method_count
 #define MENU_PATCH_GAMES 3
@@ -832,8 +836,10 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	char repatch_eboot_bin_path[sizeof("ux0:/rePatch/abcd12345/eboot.bin")];
 	char repatch_title_id_folder[sizeof("ux0:/rePatch/abcd12345/")];
 	
+	SHA1_CTX ctx;
 	FILE *fp_for_eboot;
 	int eboot_chunk_size;
+	uint8_t sha1_digest[SHA1_BLOCK_SIZE-1];
 
 	char lua_func_name[PATCH_LUA_SIZE + sizeof("patch_")];
 
@@ -891,6 +897,37 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		args->has_finished = 1;
 		sceKernelExitThread(THREAD_RET_EBOOT_DECRYPT_FAILED);
 		return THREAD_RET_EBOOT_DECRYPT_FAILED;
+	}
+	args->current_state = THREAD_CURRENT_STATE_CALCING_EBOOT_ELF_SHA1;
+	sceClibPrintf("Calculating sha1 of eboot.bin.elf\n");
+	if (args->offset_based_patch != 0) {
+		sha1_init(&ctx);
+		fp_for_eboot = fopen(WORKING_DIR "eboot.bin.elf","rb");
+		assert(fp_for_eboot > 0);
+
+		void *buf = memalign(4096, TRANSFER_SIZE);
+		while ((eboot_chunk_size = fread(buf,1,TRANSFER_SIZE,fp_for_eboot)) > 0) {
+			sha1_update(&ctx, buf, eboot_chunk_size);
+		}
+		sha1_final(&ctx, sha1_digest);
+		fclose(fp_for_eboot);
+	}
+	if (args->offset_based_patch == OFFSET_BASED_PATCH_VITA_REMOVE_DLC_LOCKS) {
+		const uint8_t LBP_VITA_1_22_STOCK_SHA1[SHA1_BLOCK_SIZE] = {0x34, 0x39, 0x39, 0xd3, 0x14, 0x65, 0x02, 0x17, 0xf9, 0xd3, 0xa5, 0x0b, 0x82, 0xa7, 0x22, 0x87, 0xe0, 0x7f, 0x07, 0x55};
+		
+		if (memcmp(sha1_digest,LBP_VITA_1_22_STOCK_SHA1,SHA1_BLOCK_SIZE) != 0) {
+			args->has_finished = 1;
+			sceKernelExitThread(THREAD_RET_UNKNOWN_EBOOT);
+			return THREAD_RET_UNKNOWN_EBOOT;
+		}
+		args->current_state = THREAD_CURRENT_STATE_PATCHING_VITA_DLC_UNLOCK;
+		sceClibPrintf("Remove dlc lock patches vita\n");
+		if (!remove_dlc_locks_vita_elf(WORKING_DIR "eboot.bin.elf")) {
+			args->has_finished = 1;
+			sceKernelExitThread(THREAD_RET_EBOOT_PATCH_FAILED);
+			return THREAD_RET_EBOOT_PATCH_FAILED;
+		}	
+
 	}
 
 	args->current_state = THREAD_CURRENT_STATE_START_PATCHING;
@@ -1133,7 +1170,7 @@ u32 get_next_rainbow_colour() {
 
 #define GetFontX() global_current_x
 void draw_scene(vita2d_font *font, u8 current_menu,int menu_arrow, bool is_alive_toggle_thing, u8 error_yet_to_press_ok, char* error_msg, int yes_no_game_popup, int started_a_thread, int thread_current_state,
-u8 saved_urls_txt_num, bool normalise_digest_checked, 
+u8 saved_urls_txt_num, bool normalise_digest_checked, int offset_based_patch,
 struct TitleIdAndGameName browse_games_buffer[], u32 browse_games_buffer_size, u32 browse_games_buffer_start,
 char * global_title_id, int global_title_id_folder_type,
 int method_count, struct LuaPatchDetails patch_lua_names[]
@@ -1197,6 +1234,20 @@ int method_count, struct LuaPatchDetails patch_lua_names[]
 				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 				DrawString(x, y, "Decrypting/decompressing eboot.bin in workspace");
 				y += CHARACTER_HEIGHT;
+				
+
+				if (second_thread_args.offset_based_patch != 0) {
+					bg_colour = (thread_current_state == THREAD_CURRENT_STATE_CALCING_EBOOT_ELF_SHA1) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
+					SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+					DrawString(x, y, "Calculating sha1 checksum of eboot.bin.elf");
+					y += CHARACTER_HEIGHT;
+				}
+				if (second_thread_args.offset_based_patch == OFFSET_BASED_PATCH_VITA_REMOVE_DLC_LOCKS) {
+					bg_colour = (thread_current_state == THREAD_CURRENT_STATE_PATCHING_VITA_DLC_UNLOCK) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
+					SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+					DrawString(x, y, "Removing DLC locks via offset seeking and writing");
+					y += CHARACTER_HEIGHT;
+				}
 
 				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_START_PATCHING) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
 				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
@@ -1312,11 +1363,17 @@ int method_count, struct LuaPatchDetails patch_lua_names[]
 			y += CHARACTER_HEIGHT;
 
 			bg_colour = (menu_arrow == 2) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			font_colour = (offset_based_patch == OFFSET_BASED_PATCH_VITA_REMOVE_DLC_LOCKS) ? TURNED_ON_FONT_COLOUR : SELECTABLE_NORMAL_FONT_COLOUR;
+			SetFontColor(font_colour, bg_colour);
+			DrawFormatString(x,y,"Unlock all DLC (1.22 only and also not piracy based)");
+			y += CHARACTER_HEIGHT;
+
+			bg_colour = (menu_arrow == 3) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 			DrawFormatString(x,y,"Browse games for Title id");
 			y += CHARACTER_HEIGHT;
 
-			bg_colour = (menu_arrow == 3) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			bg_colour = (menu_arrow == 4) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 			DrawFormatString(x,y,"Revert patches");
 			y += CHARACTER_HEIGHT;
@@ -1507,6 +1564,7 @@ int main(int argc, char *argv[]) {
 	second_thread_args.has_finished = 0;
 	second_thread_args.current_state = 0;
 	second_thread_args.normalise_digest = 1;
+	second_thread_args.offset_based_patch = 0;
 	second_thread_args.remove_allefresher = 0;
 	memset(second_thread_args.patch_lua_name,0,sizeof(second_thread_args.patch_lua_name));
 	second_thread_args.title_id_folder_type = global_title_id_folder_type;
@@ -1902,6 +1960,14 @@ int main(int argc, char *argv[]) {
 								second_thread_args.normalise_digest = !second_thread_args.normalise_digest;
 								break;
 							case 2:
+								if (second_thread_args.offset_based_patch == OFFSET_BASED_PATCH_VITA_REMOVE_DLC_LOCKS) {
+									second_thread_args.offset_based_patch = 0;
+								}
+								else {
+									second_thread_args.offset_based_patch = OFFSET_BASED_PATCH_VITA_REMOVE_DLC_LOCKS;
+								}
+								break;
+							case 3:
 								current_menu = MENU_BROWSE_GAMES;
 								menu_arrow = 0;
 								break;
@@ -1939,7 +2005,7 @@ int main(int argc, char *argv[]) {
 									sprintf(pretty_showey,"\n%s\nType: %s Title id: %s\nwith the url\n%s",game_title,patch_or_app,global_title_id,temp_show.url);
 								}
 								
-								if (menu_arrow == 3) {
+								if (menu_arrow == 4) {
 									yes_no_game_popup = YES_NO_GAME_POPUP_REVERT_EBOOT;
 									sprintf(error_msg,"Do you want to revert patches on\n%s\nTitle id: %s",game_title,global_title_id);
 								}
@@ -2068,7 +2134,7 @@ int main(int argc, char *argv[]) {
 		draw_scene_direct:
 		old_btn = my_btn;
 		draw_scene(font,current_menu,menu_arrow,is_alive_toggle_thing,error_yet_to_press_ok,error_msg,yes_no_game_popup,
-		started_a_thread,second_thread_args.current_state,saved_urls_txt_num,second_thread_args.normalise_digest,
+		started_a_thread,second_thread_args.current_state,saved_urls_txt_num,second_thread_args.normalise_digest,second_thread_args.offset_based_patch,
 		browse_games_buffer,browse_games_buffer_size,browse_games_buffer_start,global_title_id,global_title_id_folder_type,
 		method_count,patch_lua_names);
 		is_alive_toggle_thing = !is_alive_toggle_thing;

@@ -1,0 +1,57 @@
+name: Make a release of the vpk
+
+on:
+  workflow_dispatch:
+
+# from
+# https://github.com/Grarak/DSVita/blob/cb72772b83da2d650817cb3ff2397549533b001b/.github/workflows/rust.yml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout vitasdk
+        uses: actions/checkout@v4
+        with:
+          repository: vitasdk/vdpm
+          path: vdpm
+
+      - name: Install vitasdk
+        run: |
+          cd vdpm
+          ./bootstrap-vitasdk.sh
+          ./install-all.sh
+        env:
+          VITASDK: /usr/local/vitasdk
+      - name: Build release
+        run: mkdir build && cd build && cmake .. && make && cd ..
+        env:
+          VITASDK: /usr/local/vitasdk
+
+
+
+      - name: Create GitHub release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: tag_${{ github.run_number }}
+          release_name: release_${{ github.run_number }}
+          body: automated release manually ran
+          draft: false
+          prerelease: false
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: ./build/LittleBigPatcher_for_Custom_Servers_Vita_Homebrew.vpk
+          asset_name: LittleBigPatcher_for_Custom_Servers_Vita_Homebrew.vpk
+          asset_content_type: application/octet-stream

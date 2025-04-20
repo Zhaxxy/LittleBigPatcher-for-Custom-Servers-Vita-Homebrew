@@ -32,7 +32,7 @@
 #define SAVED_URLS_TXT_FIRST_HALF ROOT_DIR "saved_urls"
 #define SAVED_URLS_TXT_SECOND_HALF ".txt"
 
-#define FAGDEC_VPK_LOCATION "ux0:/app/LBPC59548/fagdec_vpk/"
+#define FAGDEC_VPK_LOCATION "ux0:/app/LBPVDLCRM/fagdec_vpk/"
 
 #define BUILT_IN_REPATCH_SKPRX_PATH "app0:/repatch_ex.skprx"
 #define TEMP_TAI_CONFIG WORKING_DIR "tai_config.txt"

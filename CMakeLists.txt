@@ -22,10 +22,10 @@ include("${VITASDK}/share/vita.cmake" REQUIRED)
 
 ## Configuration options for this app
 # Display name (under bubble in LiveArea)
-set(VITA_APP_NAME "LittleBigPatcher for Custom Servers (Vita Homebrew)")
+set(VITA_APP_NAME "Remove DLC Lock Vita")
 # Unique ID must be exactly 9 characters. Recommended: XXXXYYYYY where X =
 # unique string of developer and Y = a unique number for this app
-set(VITA_TITLEID  "LBPC59548")
+set(VITA_TITLEID  "LBPVDLCRM")
 # Optional version string to show in LiveArea's more info screen
 set(VITA_VERSION  "01.00")
 

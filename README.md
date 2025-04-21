@@ -5,7 +5,7 @@ title: LittleBigPatcher for Custom Servers (Vita Homebrew)
 # Fork of LittleBigPatcher to add in Unlock all DLC option
 
 # LittleBigPatcher for Custom Servers (Vita Homebrew)
-# livearea art and bubble by royalpaks
+# livearea art by Arcadius2006
 A simple way to patch your LittleBigPlanet games to connect to custom servers with only your Vita!
 
 # source code

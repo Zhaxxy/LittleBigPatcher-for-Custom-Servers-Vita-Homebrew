@@ -12,35 +12,16 @@
 	<frame id="frame1">
 		<liveitem>
 			<text valign="top" align="left" text-align="left" text-valign="top" line-space="1" ellipsis="on">
-				<str color="#ff00ff" size="32" bold="on" shadow="on">Information Site</str>
-			</text>
-			<target>https://littlebigpatcherteam.github.io/2025/03/15/LBPC59548.html</target>
-		</liveitem>
-		
-	</frame>
-
-	<frame id="frame2">
-		<liveitem>
-			<text valign="bottom" align="left" text-align="left" text-valign="bottom" line-space="3" ellipsis="on">
-				<str color="#ff00ff" size="32" bold="on" shadow="on">LittleBigPatcher for Custom Servers (Vita Homebrew)</str>
-			</text>
-		</liveitem>
-	</frame>
-	
-	<frame id="frame3">
-		<liveitem>
-			<text valign="top" align="left" text-align="left" text-valign="top" line-space="2">
-				<str size="24" color="#ff00ff" shadow="on">by LittleBigPatcherTeam</str>
-			</text>
-		</liveitem>
-	</frame>
-		
-	<frame id="frame4">
-		<liveitem>
-			<text align="left" text-align="left" word-wrap="off" ellipsis="on">
-				<str size="24" color="#ff00ff" shadow="on">Install FAGDec.vpk</str>
+				<str color="#ff00ff" size="32" bold="on" shadow="on">ㅤㅤㅤㅤㅤㅤㅤㅤ</str>
 			</text>
 			<target>psla:-install_fagdec_vpk</target>
+		</liveitem>
+		
+	</frame>
+	<frame id="frame3">
+		<liveitem>
+			<image origin="frame" x="-286">question_mark_dummy_image.png</image>
+			<target>https://littlebigpatcherteam.github.io/2025/03/15/LBPC59548.html</target>
 		</liveitem>
 	</frame>
 </livearea>

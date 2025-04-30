@@ -90,7 +90,7 @@
 #define ERROR_YET_TO_PRESS_OK_FAIL 1
 
 #define MENU_MAIN 0
-#define MENU_MAIN_ARROW 4-1
+#define MENU_MAIN_ARROW 5-1
 
 #define MENU_SELECT_URLS 1
 #define MENU_SELECT_URLS_ARROW saved_urls_count-1
@@ -557,6 +557,35 @@ void load_saved_urls(u8 saved_urls_txt_num) {
 
 }
 
+int save_patch_cache_bool(bool use_patch_cache) {
+	if (use_patch_cache) {
+		FILE *fp = fopen(PATCH_CACHE_FILE_EXISTS_THEN_TRUE, "wb");
+		if (fp == 0) {
+			return -1;
+		}
+		fprintf(fp,"1");
+		fclose(fp);
+		return 0;
+	}
+	else {
+		DIR *cache_dir_fp = opendir(CACHE_DIR);
+		struct dirent* reader;
+		char full_path[1024];
+		if (cache_dir_fp == NULL) {
+			return -1;
+		}
+		while ((reader = readdir(cache_dir_fp)) != NULL) {
+			if (strcmp(reader->d_name,".") == 0 || strcmp(reader->d_name,"..") == 0) {
+				continue;
+			}
+			snprintf(full_path, sizeof(full_path), "%s%s", CACHE_DIR, reader->d_name);
+			remove(full_path);
+		}
+		closedir(cache_dir_fp);
+		return 0;
+	}
+}
+
 #define CONFIG_MAX_LINE_LENGTH 256
 /*
 i try to go off this https://github.com/DaveeFTW/taihen-parser/
@@ -868,6 +897,71 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
 		return THREAD_RET_EBOOT_BACKUP_FAILED;
 	}
+	
+	// variables only use if use_patch_cache
+	int line_num_of_caches = 0;
+	char * current_cache_line;
+	FILE *fp;
+	//
+	if (args->use_patch_cache) {
+		int current_cache_line_len = strlen(my_url.url) + strlen(my_url.digest) + strlen(args->title_id) + strlen(args->patch_lua_name) + strlen("FFFFFFFF");
+		// TODO memory leak here, but this can only happen once so it does not really matter
+		current_cache_line = malloc(current_cache_line_len + 1);
+		if (!current_cache_line) {
+			args->has_finished = 1;
+			sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
+			return THREAD_RET_EBOOT_BACKUP_FAILED;
+		}
+		snprintf(current_cache_line,current_cache_line_len + 1,"%s%s%s%08X%s",my_url.url,my_url.digest,args->title_id,args->title_id_folder_type,args->patch_lua_name);
+		sceClibPrintf("Checking if theres a cache for %s",current_cache_line);
+		
+		fp = fopen(CACHE_TXT_FILE, "ab+");
+		if (fp == 0) {
+			args->has_finished = 1;
+			sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
+			return THREAD_RET_EBOOT_BACKUP_FAILED;
+		}
+		rewind(fp);
+		
+		char * line = NULL;
+		size_t len = 0;
+		ssize_t len_of_line;
+		
+		while ((len_of_line = __getline(&line, &len, fp)) > 0) {
+			if (len_of_line > 1000) {
+				goto continue_and_incr_line_num;
+			}
+			line[strcspn(line, "\r\n")] = 0;
+			len_of_line = strlen(line);
+			if (!line[0]) {
+				goto continue_and_incr_line_num;
+			}
+			if (len_of_line != current_cache_line_len) {
+				goto continue_and_incr_line_num;
+			}
+			if (memcmp(current_cache_line,line,current_cache_line_len) == 0) {
+				fclose(fp);
+				args->current_state = THREAD_CURRENT_STATE_COPYING_FROM_FAGDEC;
+				sceClibPrintf("Cache hit, restoring eboot from cache");
+				char cache_eboot_bin_file[sizeof(CACHE_DIR "eboot_bin_repatch_vita_num_9999.bin")];
+				sprintf(cache_eboot_bin_file,CACHE_DIR "eboot_bin_repatch_vita_num_%d.bin",line_num_of_caches);
+				copy_file_res = copy_file(repatch_eboot_bin_path,cache_eboot_bin_file);
+				if (copy_file_res == -1) {
+					args->has_finished = 1;
+					sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
+					return THREAD_RET_EBOOT_BACKUP_FAILED;
+				}
+				args->has_finished = 1;
+				sceKernelExitThread(THREAD_RET_EBOOT_PATCHED);
+				return THREAD_RET_EBOOT_BACKUP_FAILED;
+				// never will reach here
+			}
+			continue_and_incr_line_num:
+			line_num_of_caches++;
+		}
+		fclose(fp);
+	}
+	
 	args->current_state = THREAD_CURRENT_STATE_COPYING_FROM_FAGDEC;
 	sceClibPrintf("Copying FAGDec eboot to workspace\n");
 	copy_file_res = copy_file(WORKING_DIR "eboot.bin",fagdec_eboot);
@@ -983,7 +1077,32 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
 		return THREAD_RET_EBOOT_BACKUP_FAILED;
 	}
-	
+
+
+	if (args->use_patch_cache) {
+		// it is assumed at this point there is not cache for this eboot as thats checked for eariler
+		char cache_eboot_bin_file[sizeof(CACHE_DIR "eboot_bin_repatch_vita_num_9999.bin")];
+		sprintf(cache_eboot_bin_file,CACHE_DIR "eboot_bin_repatch_vita_num_%d.bin",line_num_of_caches);
+		
+		sceClibPrintf("Making cache copy of %s to %s",current_cache_line,cache_eboot_bin_file);
+		
+		copy_file_res = copy_file(cache_eboot_bin_file,repatch_eboot_bin_path);
+		if (copy_file_res == -1) {
+			args->has_finished = 1;
+			sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
+			return THREAD_RET_EBOOT_BACKUP_FAILED;
+		}
+		fp = fopen(CACHE_TXT_FILE, "ab+");
+		if (fp == 0) {
+			args->has_finished = 1;
+			sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
+			return THREAD_RET_EBOOT_BACKUP_FAILED;
+		}
+		fprintf(fp,current_cache_line); fprintf(fp,"\n");
+		
+		fclose(fp);
+	}
+
 	args->has_finished = 1;
 	sceKernelExitThread(THREAD_RET_EBOOT_PATCHED);
 	return THREAD_RET_EBOOT_PATCHED;
@@ -1170,7 +1289,7 @@ u32 get_next_rainbow_colour() {
 
 #define GetFontX() global_current_x
 void draw_scene(vita2d_font *font, u8 current_menu,int menu_arrow, bool is_alive_toggle_thing, u8 error_yet_to_press_ok, char* error_msg, int yes_no_game_popup, int started_a_thread, int thread_current_state,
-u8 saved_urls_txt_num, bool normalise_digest_checked, int offset_based_patch,
+u8 saved_urls_txt_num, bool normalise_digest_checked, bool use_patch_cache_checked, int offset_based_patch,
 struct TitleIdAndGameName browse_games_buffer[], u32 browse_games_buffer_size, u32 browse_games_buffer_start,
 char * global_title_id, int global_title_id_folder_type,
 int method_count, struct LuaPatchDetails patch_lua_names[]
@@ -1326,6 +1445,17 @@ int method_count, struct LuaPatchDetails patch_lua_names[]
 			y += CHARACTER_HEIGHT;
 
 			bg_colour = (menu_arrow == 3) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			font_colour = (use_patch_cache_checked) ? TURNED_ON_FONT_COLOUR : SELECTABLE_NORMAL_FONT_COLOUR;
+			SetFontColor(font_colour, bg_colour);
+			if (use_patch_cache_checked) {
+				DrawString(x,y,"Patch cache: ON (turn OFF to clear cache)");
+			}
+			else {
+				DrawString(x,y,"Patch cache: OFF (useful if you switch URLS often when ON)");
+			}
+			y += CHARACTER_HEIGHT;
+
+			bg_colour = (menu_arrow == 4) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 			DrawString(x,y,"Exit");
 			y += CHARACTER_HEIGHT;
@@ -1558,6 +1688,15 @@ int main(int argc, char *argv[]) {
 		fclose(fp_to_write_placeholder);
 	}
 
+
+	mkdir(CACHE_DIR, 0777);
+	
+	fp_to_write_placeholder = fopen(PATCH_CACHE_FILE_EXISTS_THEN_TRUE,"rb");
+	if (fp_to_write_placeholder != 0) {
+		fclose(fp_to_write_placeholder);
+	}
+	
+	second_thread_args.use_patch_cache = fp_to_write_placeholder != 0;
 
 
 	// init the global second_thread_args
@@ -1937,6 +2076,10 @@ int main(int argc, char *argv[]) {
 								current_menu = MENU_PATCH_GAMES;
 								break;
 							case 3:
+								second_thread_args.use_patch_cache = !second_thread_args.use_patch_cache;
+								save_patch_cache_bool(second_thread_args.use_patch_cache);
+								break;
+							case 4:
 								return 0; // exit
 								break;
 						}
@@ -2134,7 +2277,8 @@ int main(int argc, char *argv[]) {
 		draw_scene_direct:
 		old_btn = my_btn;
 		draw_scene(font,current_menu,menu_arrow,is_alive_toggle_thing,error_yet_to_press_ok,error_msg,yes_no_game_popup,
-		started_a_thread,second_thread_args.current_state,saved_urls_txt_num,second_thread_args.normalise_digest,second_thread_args.offset_based_patch,
+		started_a_thread,second_thread_args.current_state,saved_urls_txt_num,second_thread_args.normalise_digest,second_thread_args.use_patch_cache,
+		second_thread_args.offset_based_patch,
 		browse_games_buffer,browse_games_buffer_size,browse_games_buffer_start,global_title_id,global_title_id_folder_type,
 		method_count,patch_lua_names);
 		is_alive_toggle_thing = !is_alive_toggle_thing;

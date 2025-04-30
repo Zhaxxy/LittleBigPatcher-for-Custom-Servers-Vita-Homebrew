@@ -1,11 +1,14 @@
 #ifndef SAVE_FOLDERS_H_   /* Include guard */
 #define SAVE_FOLDERS_H_
 
-#define VERSION_NUM_STR "v2.011"
+#define VERSION_NUM_STR "v2.012"
 
 #define ROOT_DIR "ux0:/data/lbpatcher_stuff/"
 #define WORKING_DIR ROOT_DIR "temp_files/"
+#define CACHE_DIR ROOT_DIR "cache_do_not_touch_only_delete_entire_folder/"
 #define COLOUR_CONFIG_FILE ROOT_DIR "colours_config.txt"
+#define PATCH_CACHE_FILE_EXISTS_THEN_TRUE CACHE_DIR "if_this_file_exists_then_the_patch_cache_is_on.txt"
+#define CACHE_TXT_FILE CACHE_DIR "url_digest_title_id_and_patch_lua_name_caches.txt"
 #define PATCH_LUA_FILE_NAME "patch.lua"
 #define PATCH_LUA_FILE "app0:/" PATCH_LUA_FILE_NAME
 

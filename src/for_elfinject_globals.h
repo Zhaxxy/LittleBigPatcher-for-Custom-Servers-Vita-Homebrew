@@ -14,6 +14,7 @@ struct SecondThreadArgs {
     bool has_finished;
 	int current_state;
 	bool normalise_digest;
+	bool use_patch_cache;
 	int offset_based_patch;
 	bool remove_allefresher;
 	char patch_lua_name[PATCH_LUA_SIZE];

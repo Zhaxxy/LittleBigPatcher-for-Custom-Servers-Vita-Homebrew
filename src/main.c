@@ -11,6 +11,7 @@
 #include <psp2/power.h> // for scePowerRequestColdReset
 #include <psp2/shellutil.h>  // for sceShellUtilLock
 #include <psp2/apputil.h>  // for sceAppUtilReceiveAppEvent and SceAppUtilAppEventParam
+#include <psp2/system_param.h> // for sceAppUtilSystemParamGetInt(SCE_SYSTEM_PARAM_ID_ENTER_BUTTON
 
 #include <psp2/kernel/clib.h> // for sceClibPrintf
 
@@ -51,8 +52,11 @@
 #define BTN_L3         SCE_CTRL_L3
 #define BTN_SELECT     SCE_CTRL_SELECT  
 #define BTN_SQUARE     SCE_CTRL_SQUARE
-#define BTN_CROSS      SCE_CTRL_CROSS
-#define BTN_CIRCLE     SCE_CTRL_CIRCLE
+
+// globals instead of macros because we need to swap them in init if the user has circle for enter
+int BTN_CROSS;
+int BTN_CIRCLE;
+
 #define BTN_TRIANGLE   SCE_CTRL_TRIANGLE
 #define BTN_R1         SCE_CTRL_R1
 #define BTN_L1         SCE_CTRL_L1
@@ -119,10 +123,13 @@
 #define REPATCH_INSTALLED_REPATCH 1
 #define REPATCH_INSTALLED_ALLEFRESHER 2
 
-#define MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN ""
+// globals instead of macros because we need to swap them in init if the user has circle for enter
+char MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN[3];
+char MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN[3];
+
 #define MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_SQUARE_BTN ""
 #define MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN ""
-#define MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN "¹"//"\x88"
+
 
 #define START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT 222
 
@@ -1323,7 +1330,7 @@ int method_count, struct LuaPatchDetails patch_lua_names[]
 		DrawFormatString(x,y,error_msg);
 		y += CHARACTER_HEIGHT*8; // give a bunch of space for title
 		SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, SELECTED_FONT_BG_COLOUR);
-		DrawFormatString(x,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN" to continue");
+		DrawFormatString(x,y,"Press %s to continue",MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN);
 		return;
 	}
 	
@@ -1466,9 +1473,9 @@ int method_count, struct LuaPatchDetails patch_lua_names[]
 			DrawString(x,y,"Things will have this font colour if it is selected");
 			y += CHARACTER_HEIGHT*2;
 			SetFontColor(TITLE_FONT_COLOUR,TITLE_BG_COLOUR);
-			DrawString(x,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN" to enter menus and select things");
+			DrawFormatString(x,y,"Press %s to enter menus and select things",MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN);
 			y += CHARACTER_HEIGHT*2;
-			DrawString(x,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN" to go back to the previous menu");
+			DrawFormatString(x,y,"Press %s to go back to the previous menu",MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN);
 			y += CHARACTER_HEIGHT*2;
 			DrawString(x,y,"Use the D-pad (up and down) to navigate through the menus\nleft and right to change pages");
 			y += CHARACTER_HEIGHT*(2+1);
@@ -1613,6 +1620,7 @@ int main(int argc, char *argv[]) {
 	SceCtrlData pad;
 	int my_btn;
 	int old_btn = 0;
+	int enter_button = SCE_SYSTEM_PARAM_ENTER_BUTTON_CROSS;
 	char patch_or_app[sizeof("Patch")];
 	bool is_alive_toggle_thing = 0;
 	struct UrlToPatchTo temp_editing_url;
@@ -1721,11 +1729,25 @@ int main(int argc, char *argv[]) {
 	void *second_args_pointer_to_avoid_copy = &second_thread_args;
 	
 	sceShellUtilInitEvents(0);
-	
+
 	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
 	memset(&pad, 0, sizeof(pad));
 	
 	init_for_input();
+
+	sceAppUtilSystemParamGetInt(SCE_SYSTEM_PARAM_ID_ENTER_BUTTON, &enter_button);
+	if (enter_button == SCE_SYSTEM_PARAM_ENTER_BUTTON_CIRCLE) {
+		BTN_CIRCLE = SCE_CTRL_CROSS;
+		BTN_CROSS = SCE_CTRL_CIRCLE;
+		strcpy(MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN,"¹");
+		strcpy(MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN,"");
+	}
+	else {
+		BTN_CIRCLE = SCE_CTRL_CIRCLE;
+		BTN_CROSS = SCE_CTRL_CROSS;
+		strcpy(MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN,"¹");
+		strcpy(MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN,"");
+	}
 
 	SceAppUtilAppEventParam eventParam;
 	memset(&eventParam, 0, sizeof(SceAppUtilAppEventParam));

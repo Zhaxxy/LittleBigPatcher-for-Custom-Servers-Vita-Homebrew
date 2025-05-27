@@ -103,7 +103,7 @@ int BTN_CIRCLE;
 #define MENU_EDIT_URLS_ARROW (saved_urls_count-1)*2+1
 
 
-#define MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES 5-1
+#define MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES 6-1
 #define MINUS_MENU_ARROW_AMNT_TO_GET_PATCH_LUA_INDEX MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES + 1
 #define MENU_PATCH_GAMES_ARROW MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES+method_count
 #define MENU_PATCH_GAMES 3
@@ -135,7 +135,7 @@ char MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN[3];
 
 #define DEFAULT_TITLE_ID "PCSF00000"
 
-#define DONE_A_SWITCH has_done_a_switch = 1; if (load_global_title_id()) {global_title_id_folder_type = 0;} 0
+#define DONE_A_SWITCH has_done_a_switch = 1; if (load_global_title_id()) {global_title_id_folder_type = 0;} 0; load_user_join_pwd(second_thread_args.join_password)
 
 #define DRAW_CHAR_BG_COLOUR_HEIGHT 19
 #define CHARACTER_HEIGHT 23
@@ -234,6 +234,35 @@ bool is_valid_title_id(char* title_id) // assumes its uppercase
 	}
 	
 	return 1;
+}
+
+
+int save_user_join_pwd(const char * pretty_user_input_join_password) {
+	FILE *fp = fopen(JOIN_PASSWORD_TXT, "wb");
+	if (fp == 0) {
+		return -1;
+	}
+	
+	if (pretty_user_input_join_password[0] == 0) {
+		fclose(fp);
+		return 0;
+	}
+	
+	fputs(pretty_user_input_join_password, fp);
+	fclose(fp);
+	return 0;
+}
+
+void load_user_join_pwd(char * pretty_user_input_join_password) {
+	memset(pretty_user_input_join_password,0,4096+1);
+	FILE *fp = fopen(JOIN_PASSWORD_TXT, "rb");
+	if (fp == 0) {
+		return;
+	}
+	
+	fread(pretty_user_input_join_password,1,4096,fp);
+	
+	fclose(fp);
 }
 
 int save_global_title_id_to_disk() {
@@ -911,7 +940,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	FILE *fp;
 	//
 	if (args->use_patch_cache) {
-		int current_cache_line_len = strlen(my_url.url) + strlen(my_url.digest) + strlen(args->title_id) + strlen(args->patch_lua_name) + strlen("FFFFFFFF");
+		int current_cache_line_len = strlen(my_url.url) + strlen(my_url.digest) + strlen(args->title_id) + strlen(args->patch_lua_name) + strlen("FFFFFFFF") + strlen(args->join_password);;
 		// TODO memory leak here, but this can only happen once so it does not really matter
 		current_cache_line = malloc(current_cache_line_len + 1);
 		if (!current_cache_line) {
@@ -919,7 +948,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 			sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
 			return THREAD_RET_EBOOT_BACKUP_FAILED;
 		}
-		snprintf(current_cache_line,current_cache_line_len + 1,"%s%s%s%08X%s",my_url.url,my_url.digest,args->title_id,args->title_id_folder_type,args->patch_lua_name);
+		snprintf(current_cache_line,current_cache_line_len + 1,"%s%s%s%08X%s%s",my_url.url,my_url.digest,args->title_id,args->title_id_folder_type,args->patch_lua_name,args->join_password);
 		sceClibPrintf("Checking if theres a cache for %s",current_cache_line);
 		
 		fp = fopen(CACHE_TXT_FILE, "ab+");
@@ -1046,7 +1075,8 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	lua_pushstring(L,my_url.digest);
 	lua_pushboolean(L,args->normalise_digest);
 	lua_pushstring(L,WORKING_DIR);
-    if (lua_pcall(L, 5, 1, 0) != LUA_OK) {
+	lua_pushstring(L,args->join_password);
+    if (lua_pcall(L, 6, 1, 0) != LUA_OK) {
         // gonna pop the error later
 		// sceClibPrintf("Error calling function: %s\n", lua_tostring(L, -1));
 		args->has_finished = 1;
@@ -1299,7 +1329,8 @@ void draw_scene(vita2d_font *font, u8 current_menu,int menu_arrow, bool is_alive
 u8 saved_urls_txt_num, bool normalise_digest_checked, bool use_patch_cache_checked, int offset_based_patch,
 struct TitleIdAndGameName browse_games_buffer[], u32 browse_games_buffer_size, u32 browse_games_buffer_start,
 char * global_title_id, int global_title_id_folder_type,
-int method_count, struct LuaPatchDetails patch_lua_names[]
+int method_count, struct LuaPatchDetails patch_lua_names[],
+char * join_password
 ) {
 	u32 rainbow_colour;
 	int x_get_font;
@@ -1514,7 +1545,19 @@ int method_count, struct LuaPatchDetails patch_lua_names[]
 			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 			DrawFormatString(x,y,"Revert patches");
 			y += CHARACTER_HEIGHT;
+
+			bg_colour = (menu_arrow == 5) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawFormatString(x,y,"Join key: ");
+			if (join_password[0] == 0) {
+				DrawFormatString(GetFontX(),y,"Randomised (no one can join you)");
+			}
+			else {
+				DrawFormatString(GetFontX(),y,join_password);
+			}
 			
+			y += CHARACTER_HEIGHT;
+
 			for (int i = 0; i < method_count; i++) {
 				bg_colour = (menu_arrow-MINUS_MENU_ARROW_AMNT_TO_GET_PATCH_LUA_INDEX == i) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
@@ -1716,6 +1759,7 @@ int main(int argc, char *argv[]) {
 	memset(second_thread_args.patch_lua_name,0,sizeof(second_thread_args.patch_lua_name));
 	second_thread_args.title_id_folder_type = global_title_id_folder_type;
 	second_thread_args.title_id[0] = 0;
+	memset(second_thread_args.join_password,0,4096+1);
 
 	struct LuaPatchDetails patch_lua_names[MAX_LINES];
 	int method_count = 0;
@@ -1820,6 +1864,9 @@ int main(int argc, char *argv[]) {
 		sceClibPrintf("found some functions but they had no patch_method_ string for it\n");
 		return 1;
 	}
+	lua_pushboolean(L, 0);
+	lua_setglobal(L, "IS_BIG_ENDIAN");
+
 	method_index = 0;
 	
 	vita2d_init();
@@ -2136,6 +2183,10 @@ int main(int argc, char *argv[]) {
 								current_menu = MENU_BROWSE_GAMES;
 								menu_arrow = 0;
 								break;
+							case 5:
+								input("Enter in join key (leave empty if only play alone) (follow best pwd practices!)",second_thread_args.join_password,sizeof(second_thread_args.join_password));
+								save_user_join_pwd(second_thread_args.join_password);
+								break;
 							default:
 								
 								if (!(temp_title_id_folder_type = title_id_exists(global_title_id))) {
@@ -2302,7 +2353,7 @@ int main(int argc, char *argv[]) {
 		started_a_thread,second_thread_args.current_state,saved_urls_txt_num,second_thread_args.normalise_digest,second_thread_args.use_patch_cache,
 		second_thread_args.offset_based_patch,
 		browse_games_buffer,browse_games_buffer_size,browse_games_buffer_start,global_title_id,global_title_id_folder_type,
-		method_count,patch_lua_names);
+		method_count,patch_lua_names, second_thread_args.join_password);
 		is_alive_toggle_thing = !is_alive_toggle_thing;
 		
         vita2d_end_drawing();

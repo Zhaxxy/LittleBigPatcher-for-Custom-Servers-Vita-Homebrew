@@ -1,7 +1,7 @@
 #ifndef SAVE_FOLDERS_H_   /* Include guard */
 #define SAVE_FOLDERS_H_
 
-#define VERSION_NUM_STR "v2.013"
+#define VERSION_NUM_STR "v2.015"
 
 #define ROOT_DIR "ux0:/data/lbpatcher_stuff/"
 #define WORKING_DIR ROOT_DIR "temp_files/"
@@ -45,6 +45,7 @@
 #define REPATCH_SKPRX_UX0_PATH "ux0:/tai/repatch_ex.skprx"
 
 #define TITLE_ID_TXT ROOT_DIR "title_id_to_patch.txt"
+#define JOIN_PASSWORD_TXT ROOT_DIR "SECRET_DONT_SHARE_join_key.txt"
 
 
 #endif // SAVE_FOLDERS_H_

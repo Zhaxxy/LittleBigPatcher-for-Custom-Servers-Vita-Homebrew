@@ -62,6 +62,10 @@ For providing information on how to parse the tai config.txt to install repatch 
 For the `repatch_ex.skprx` file which the app can install automatically
 ## [FAGDec](https://github.com/TeamFAPS/PSVita-RE-tools/tree/master/FAGDec/src)
 Allowing this to be possible, and hopefully in future will be coded in this app directly during patching process
+## [Patchwork 1.0](https://github.com/HugeSpaceship/Patchwork)
+Implementation of "join keys" is based of, as well as user agent convention
+## regg2
+Mysterious Discord user who came up with the idea of editing the network xxtea keys
 
 <div id='lua-credit'/>
 

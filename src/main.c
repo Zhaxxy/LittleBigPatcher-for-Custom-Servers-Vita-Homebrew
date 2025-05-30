@@ -254,13 +254,13 @@ int save_user_join_pwd(const char * pretty_user_input_join_password) {
 }
 
 void load_user_join_pwd(char * pretty_user_input_join_password) {
-	memset(pretty_user_input_join_password,0,4096+1);
+	memset(pretty_user_input_join_password,0,2048+1);
 	FILE *fp = fopen(JOIN_PASSWORD_TXT, "rb");
 	if (fp == 0) {
 		return;
 	}
 	
-	fread(pretty_user_input_join_password,1,4096,fp);
+	fread(pretty_user_input_join_password,1,2048,fp);
 	
 	fclose(fp);
 }
@@ -1759,7 +1759,7 @@ int main(int argc, char *argv[]) {
 	memset(second_thread_args.patch_lua_name,0,sizeof(second_thread_args.patch_lua_name));
 	second_thread_args.title_id_folder_type = global_title_id_folder_type;
 	second_thread_args.title_id[0] = 0;
-	memset(second_thread_args.join_password,0,4096+1);
+	memset(second_thread_args.join_password,0,2048+1);
 
 	struct LuaPatchDetails patch_lua_names[MAX_LINES];
 	int method_count = 0;

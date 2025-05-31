@@ -33,6 +33,10 @@ jobs:
           VITASDK: /usr/local/vitasdk
 
 
+      - name: Get patcher version string
+        id: get_patcher_version_string
+        run: python3 -c 'from pathlib import Path; print([x for x in Path("src/save_folders.h").read_text().split("\n") if x.startswith("#define VERSION_NUM_STR")][0].split("\"")[1])' >> $GITHUB_OUTPUT
+
 
       - name: Create GitHub release
         id: create_release
@@ -40,8 +44,8 @@ jobs:
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
-          tag_name: tag_${{ github.run_number }}
-          release_name: release_${{ github.run_number }}
+          tag_name: tag_${{ github.run_number }}_${{ steps.get_patcher_version_string.outputs.tag }}
+          release_name: ${{ steps.get_patcher_version_string.outputs.tag }} with Unlock all DLC option
           body: automated release manually ran
           draft: false
           prerelease: false

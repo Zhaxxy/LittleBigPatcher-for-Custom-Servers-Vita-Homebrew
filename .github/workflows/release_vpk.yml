@@ -35,7 +35,7 @@ jobs:
 
       - name: Get patcher version string
         id: get_patcher_version_string
-        run: python3 -c 'from pathlib import Path; print("patcher_version_string=patcher_version_string-$" + [x for x in Path("src/save_folders.h").read_text().split("\n") if x.startswith("#define VERSION_NUM_STR")][0].split("\"")[1])' >> $GITHUB_OUTPUT
+        run: python3 -c 'from pathlib import Path; print("patcher_version_string=" + [x for x in Path("src/save_folders.h").read_text().split("\n") if x.startswith("#define VERSION_NUM_STR")][0].split("\"")[1])' >> $GITHUB_OUTPUT
 
 
       - name: Create GitHub release

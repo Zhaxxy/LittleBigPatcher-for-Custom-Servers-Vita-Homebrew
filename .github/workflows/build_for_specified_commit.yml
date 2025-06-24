@@ -1,0 +1,65 @@
+# Help from
+# https://github.com/Grarak/DSVita/blob/cb72772b83da2d650817cb3ff2397549533b001b/.github/workflows/rust.yml
+
+name: Build for specified commit
+
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'The commit to build for'
+        required: true
+
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+        - name : echo commit
+          run: echo "${{ github.event.inputs.commit }}"
+
+        - name: Checkout with full history
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+
+        - uses: actions/checkout@v4
+          with:
+            submodules: recursive
+
+        - name: Checkout vitasdk
+          uses: actions/checkout@v4
+          with:
+            repository: vitasdk/vdpm
+            path: vdpm
+
+        - name: Install vitasdk
+          run: |
+            cd vdpm
+            ./bootstrap-vitasdk.sh
+            ./install-all.sh
+          env:
+            VITASDK: /usr/local/vitasdk
+
+        - name: Switch to specified commit
+          run: git checkout ${{ github.event.inputs.commit }}
+
+        - name: Build
+          run: |
+            mkdir build && cd build && cmake .. && make && cd ..
+          env:
+            VITASDK: /usr/local/vitasdk
+
+        - name: Calculate hash of build
+          id: build_hash
+          run: |
+            BUILD_HASH=$(sha256sum build/LittleBigPatcher_for_Custom_Servers_Vita_Homebrew.vpk | cut -d ' ' -f 1)
+            echo "build_hash=$BUILD_HASH" >> $GITHUB_OUTPUT
+
+        - name: Push artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: sha256_${{ steps.build_hash.outputs.build_hash }}
+            path: build/LittleBigPatcher_for_Custom_Servers_Vita_Homebrew.vpk
+            if-no-files-found: error

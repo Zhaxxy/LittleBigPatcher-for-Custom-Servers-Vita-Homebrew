@@ -56,6 +56,7 @@ add_executable(${PROJECT_NAME}
   src/for_elfinject_globals.c
   src/patching_eboot_elf_vita_dlc_lock_removal.c
   src/text_input_vita.c
+  src/http.c
   src/copyfile_thing.c
   src/sha1.c
 
@@ -119,6 +120,10 @@ target_link_libraries(${PROJECT_NAME}
   SceAppUtil_stub
   ScePower_stub
   SceShellSvc_stub
+  SceNet_stub
+  SceNetCtl_stub
+  SceHttp_stub
+  SceSsl_stub
 )
 
 ## Create Vita files

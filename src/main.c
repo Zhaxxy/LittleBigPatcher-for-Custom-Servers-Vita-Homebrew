@@ -24,6 +24,7 @@
 
 #include "NotoSans_Regular_ttf.h"
 #include "text_input_vita.h"
+#include "http.h"
 #include "save_folders.h"
 #include "colours_config.h"
 #include "patching_eboot_elf_vita_dlc_lock_removal.h"
@@ -79,6 +80,8 @@ int BTN_CIRCLE;
 #define THREAD_RET_REPATCH_INSTALL_FAILED 9
 #define THREAD_RET_UNKNOWN_EBOOT 10
 
+#define THREAD_RET_COULD_NOT_DOWNLOAD_LATEST_PKG 1
+
 #define THREAD_CURRENT_STATE_CLEANING_WORKSPACE 1
 #define THREAD_CURRENT_STATE_COPYING_FROM_FAGDEC 2
 #define THREAD_CURRENT_STATE_EBOOT_DECRYPT 3
@@ -117,6 +120,8 @@ int BTN_CIRCLE;
 #define YES_NO_GAME_POPUP_INSTALL_REPATCH 3
 #define YES_NO_GAME_POPUP_REMOVE_ALLEFRESHER 4
 
+#define CURRENTLY_CHECKING_FOR_UPDATES 5
+
 #define TITLE_ID_PATCH 1
 #define TITLE_ID_APP 2
 
@@ -151,6 +156,8 @@ char MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN[3];
 lua_State *L;
 
 int global_current_x;
+
+char global_newest_version_tag[sizeof(VERSION_NUM_STR)];
 
 struct TitleIdAndGameName {
 	int title_id_folder_type;
@@ -1157,6 +1164,53 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	return THREAD_RET_EBOOT_PATCHED;
 }
 
+int check_for_updates_thread(unsigned int arglen, void **argp) {
+	struct SecondThreadArgs *args = *argp;
+	int http_init_ret;
+	
+	// quick way of not needing to parse json
+	// always assuming that it will start with [{"name":"v0.000
+	char newest_version_tag_buffer[sizeof("[{\"name\":\"v0.000")] = {0};
+	
+	
+	http_init_ret = http_download_to_buffer(
+		"https://api.github.com/repos/LittleBigPatcherTeam/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew/tags",
+		newest_version_tag_buffer,
+		sizeof(newest_version_tag_buffer)-1,
+		HTTP_ALLOW_SMALLER_BUFFER_SIZE
+	);
+	
+	if (http_init_ret == 0) {
+		strcpy(global_newest_version_tag,newest_version_tag_buffer + strlen("[{\"name\":\""));
+		sceClibPrintf("global_newest_version_tag = %s",global_newest_version_tag);
+	}
+	else {
+		sceClibPrintf("Failed to get newest tag from https github 0x%x",http_init_ret);
+		args->has_finished = 1;
+		sceKernelExitThread(0);
+		return 0;
+	}
+	
+	// TODO double check if version is newest or not
+	if (strcmp(VERSION_NUM_STR,global_newest_version_tag) == 0) {
+		args->has_finished = 1;
+		sceKernelExitThread(0);
+		return 0;
+	}
+
+	http_init_ret = http_download(UPDATE_DOWNLOAD_LINK,UPDATE_LOCATION);
+	if (http_init_ret == 0) {
+		args->has_finished = 1;
+		sceKernelExitThread(0);
+		return 0;
+	}
+	else {
+		args->has_finished = 1;
+		sceKernelExitThread(THREAD_RET_COULD_NOT_DOWNLOAD_LATEST_PKG);
+		return THREAD_RET_COULD_NOT_DOWNLOAD_LATEST_PKG;
+	}
+}
+
 int vita2d_font_draw_textf_with_bg(vita2d_font *font,u32 colour, u32 bg_colour,int x, int y, int size, char * text,...) {
 	int x_from_font;
 	char buf[1024];
@@ -1380,6 +1434,9 @@ char * join_password
 	else if (started_a_thread != 0) {
 		y += CHARACTER_HEIGHT;
 		switch (started_a_thread) {
+			case CURRENTLY_CHECKING_FOR_UPDATES:
+				DrawFormatString(x,y,"Checking for LittleBigPatcherTeam updates. Please wait...");
+				break;
 			case YES_NO_GAME_POPUP_REVERT_EBOOT:
 				DrawFormatString(x,y,"Reverting patches on your game. Please wait...");
 				break;
@@ -1682,12 +1739,14 @@ int main(int argc, char *argv[]) {
 	char editing_url_text_buffer[72];
 	u8 error_yet_to_press_ok = 0;
 	bool exit_after_done = 0;
+	bool allow_triangle_bypass_exit_after_done = 0;
 	bool reboot_the_vita = 0;
 	int started_a_thread = 0;
 	int yes_no_game_popup = 0;
 	char * game_title;
 	char param_sfo_path[sizeof("ux0:/patch/ABCD12345/sce_sys/param.sfo")];
 	char error_msg[1000];
+	FILE *vita_shell_lastdir;
 	
 	char pretty_showey[500];
 	bool has_done_a_switch = 1;
@@ -1702,14 +1761,17 @@ int main(int argc, char *argv[]) {
 	
 	int temp_title_id_folder_type;
 	bool first_time = 1;
+	bool checked_for_updates_yet = 0;
+	bool open_vitashell_for_update_dir = 0;
 	int repatch_installed_res;
 	
 	int launch_by_uri_res;
 	
 	mkdir(ROOT_DIR, 0777);
+	mkdir(UPDATES_DIR, 0777);
 	mkdir(WORKING_DIR, 0777);
 	load_config();
-	
+
 	FILE *fp_to_write_placeholder;
 	bool file_no_exist_or_is_empty = 0;
 	
@@ -1788,6 +1850,9 @@ int main(int argc, char *argv[]) {
 
 	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
 	memset(&pad, 0, sizeof(pad));
+	
+	netInit();
+	httpInit();
 	
 	init_for_input();
 
@@ -1890,8 +1955,47 @@ int main(int argc, char *argv[]) {
 		vita2d_clear_screen();
 		
 		if (first_time) {
+			if (!checked_for_updates_yet) {
+				if (!started_a_thread) {
+					second_thread_id = sceKernelCreateThread(SECOND_THREAD_NAME, check_for_updates_thread, SECOND_THREAD_PRIORITY, SECOND_THREAD_STACK_SIZE, 0, 0, NULL);
+					assert(second_thread_id > 0);
+					assert(sceKernelStartThread(second_thread_id, sizeof(second_thread_args), &second_args_pointer_to_avoid_copy) == 0);
+					started_a_thread = CURRENTLY_CHECKING_FOR_UPDATES;
+				}
+				if (second_thread_args.has_finished) {
+					assert(sceKernelWaitThreadEnd(second_thread_id,&second_thread_retval,0) == 0);
+					assert(sceKernelDeleteThread(second_thread_id) == 0);
+					second_thread_args.has_finished = 0;
+					started_a_thread = 0;
+					
+					exit_after_done = 1;
+					error_yet_to_press_ok = 1;
+					allow_triangle_bypass_exit_after_done = 1;
+					
+					if (global_newest_version_tag[0] == 0) {
+						sprintf(error_msg,"Could not get newest version\nPlease check your internet connection then open this again");
+					}
+					else if (strcmp(VERSION_NUM_STR,global_newest_version_tag) != 0) {
+						if (second_thread_retval == THREAD_RET_COULD_NOT_DOWNLOAD_LATEST_PKG) {
+							sprintf(error_msg,"New version available %s.\nBut could not download it,\nPlease download and install the latest",global_newest_version_tag);
+						}
+						else {
+							sprintf(error_msg,"New version available %s.\nInstall it now?",global_newest_version_tag);
+							open_vitashell_for_update_dir = 1;
+						}
+					}
+					else {
+						error_yet_to_press_ok = 0;
+						exit_after_done = 0;
+						allow_triangle_bypass_exit_after_done = 0;
+					}
+					
+					checked_for_updates_yet = 1;
+				}
+				goto draw_scene_direct;
+			}
 			if (LIVEAREA_SELECTED("psla:-install_fagdec_vpk",eventParam)) {
-				FILE *vita_shell_lastdir = fopen("ux0:/VitaShell/internal/lastdir.txt","wb");
+				vita_shell_lastdir = fopen("ux0:/VitaShell/internal/lastdir.txt","wb");
 				if (vita_shell_lastdir == 0) {
 					sprintf(error_msg,"Looks like VitaShell isn't installed, please install it first and boot it at least once");
 					exit_after_done = 1;
@@ -1941,6 +2045,22 @@ int main(int argc, char *argv[]) {
 			if (error_yet_to_press_ok) {
 				if (my_btn & BTN_CROSS) {
 					if (exit_after_done) {
+						if (open_vitashell_for_update_dir) {
+							vita_shell_lastdir = fopen("ux0:/VitaShell/internal/lastdir.txt","wb");
+							if (vita_shell_lastdir == 0) {
+								sprintf(error_msg,"Looks like VitaShell isn't installed, please install it first and boot it at least once");
+								exit_after_done = 1;
+								goto draw_scene_direct;
+							}
+							fwrite(UPDATES_DIR,1,sizeof(UPDATES_DIR),vita_shell_lastdir);
+							fclose(vita_shell_lastdir);
+							launch_by_uri_res = sceAppMgrLaunchAppByUri(0x20000, "psgm:play?titleid=VITASHELL");
+							if (launch_by_uri_res < 0) {
+								sprintf(error_msg,"Some reason, we could not boot VitaShell");
+								exit_after_done = 1;
+								goto draw_scene_direct;
+							}
+						}
 						return 0;
 					}
 					if (reboot_the_vita) {
@@ -1948,6 +2068,18 @@ int main(int argc, char *argv[]) {
 						return 0;
 					}
 					error_yet_to_press_ok = 0;
+				}
+				/* 
+				I will prefer people to not use outdated versions, but i understand that people have their reasons, so they can press BTN_TRIANGLE to continue.
+				However the only mention of that will be here
+				*/
+				if (my_btn & BTN_TRIANGLE) {
+					if (allow_triangle_bypass_exit_after_done) {
+						exit_after_done = 0;
+						error_yet_to_press_ok = 0;
+						allow_triangle_bypass_exit_after_done = 0;
+						open_vitashell_for_update_dir = 0;
+					}
 				}
 				goto draw_scene_direct;
 			}
@@ -2373,5 +2505,7 @@ int main(int argc, char *argv[]) {
 	}
 	vita2d_fini();
 	vita2d_free_font(font);
+	httpTerm();
+	netTerm();
 	return 0;
 }

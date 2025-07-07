@@ -4,7 +4,7 @@
 #define VERSION_NUM_STR "v2.019"
 
 #define ROOT_DIR "ux0:/data/lbpatcher_stuff/"
-#define UPDATE_DOWNLOAD_LINK "https://github.com/LittleBigPatcherTeam/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew/releases/latest/download/LittleBigPatcher_for_Custom_Servers_Vita_Homebrew.vpk"
+#define UPDATE_DOWNLOAD_LINK "https://github.com/Zhaxxy/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew/releases/latest/download/LittleBigPatcher_for_Custom_Servers_Vita_Homebrew.vpk"
 #define UPDATES_DIR ROOT_DIR "updates/"
 #define UPDATE_LOCATION UPDATES_DIR "update.vpk"
 #define WORKING_DIR ROOT_DIR "temp_files/"

@@ -1174,7 +1174,7 @@ int check_for_updates_thread(unsigned int arglen, void **argp) {
 	
 	
 	http_init_ret = http_download_to_buffer(
-		"https://api.github.com/repos/LittleBigPatcherTeam/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew/tags",
+		"https://api.github.com/repos/Zhaxxy/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew/tags",
 		newest_version_tag_buffer,
 		sizeof(newest_version_tag_buffer)-1,
 		HTTP_ALLOW_SMALLER_BUFFER_SIZE

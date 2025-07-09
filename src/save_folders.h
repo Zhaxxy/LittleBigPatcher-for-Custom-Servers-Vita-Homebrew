@@ -1,7 +1,7 @@
 #ifndef SAVE_FOLDERS_H_   /* Include guard */
 #define SAVE_FOLDERS_H_
 
-#define VERSION_NUM_STR "v2.019"
+#define VERSION_NUM_STR "v2.020"
 
 #define ROOT_DIR "ux0:/data/lbpatcher_stuff/"
 #define UPDATE_DOWNLOAD_LINK "https://github.com/Zhaxxy/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew/releases/latest/download/LittleBigPatcher_for_Custom_Servers_Vita_Homebrew.vpk"

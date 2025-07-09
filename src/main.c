@@ -1410,7 +1410,12 @@ char * join_password
 	bg_colour = TITLE_BG_COLOUR;
 	font_colour = TITLE_FONT_COLOUR;
 	
-	vita2d_set_clear_color(BACKGROUND_COLOUR);
+	if (BACKGROUND_COLOUR == 522001152) {
+		vita2d_set_clear_color(rainbow_colour);
+	}
+	else {
+		vita2d_set_clear_color(BACKGROUND_COLOUR);
+	}
 	
 	SetFontColor(TITLE_FONT_COLOUR, TITLE_BG_COLOUR);
 	

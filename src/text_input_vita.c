@@ -5,6 +5,7 @@ https://github.com/vitasdk/samples/blob/a799c2a8139915bd51706c198c493054dce30dac
 */
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #include <psp2/types.h>
 #include <psp2/kernel/processmgr.h>
@@ -186,5 +187,6 @@ int input(const char* title, char* text, uint32_t size) {
 	if (result.button == SCE_IME_DIALOG_BUTTON_ENTER) {
 		utf16_to_utf8(input2,text);
 	}
+	strcpy(text,strstrip(text));
 	return result.button;
 }

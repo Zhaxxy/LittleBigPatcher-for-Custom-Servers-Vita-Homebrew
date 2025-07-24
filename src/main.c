@@ -136,7 +136,7 @@ char MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN[3];
 #define MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN ""
 
 
-#define START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT 222
+#define START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT 618
 
 #define DEFAULT_TITLE_ID "PCSF00000"
 
@@ -1391,7 +1391,7 @@ u32 get_next_rainbow_colour() {
 #define SetFontColor(font_colour_in,bg_colour_in) bg_colour = (bg_colour_in == 522001152) ? rainbow_colour : bg_colour_in; font_colour = (font_colour_in == 522001152) ? rainbow_colour : font_colour_in
 
 #define GetFontX() global_current_x
-void draw_scene(vita2d_font *font, u8 current_menu,int menu_arrow, bool is_alive_toggle_thing, u8 error_yet_to_press_ok, char* error_msg, int yes_no_game_popup, int started_a_thread, int thread_current_state,
+void draw_scene(vita2d_font *font, u8 current_menu,int menu_arrow, u8 error_yet_to_press_ok, char* error_msg, int yes_no_game_popup, int started_a_thread, int thread_current_state,
 u8 saved_urls_txt_num, bool normalise_digest_checked, bool use_patch_cache_checked, int offset_based_patch,
 struct TitleIdAndGameName browse_games_buffer[], u32 browse_games_buffer_size, u32 browse_games_buffer_start,
 char * global_title_id, int global_title_id_folder_type,
@@ -1419,7 +1419,7 @@ char * join_password
 	
 	SetFontColor(TITLE_FONT_COLOUR, TITLE_BG_COLOUR);
 	
-	DrawFormatString(START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN" to refresh things if ->%d<- is a solid 1 or 0, app is frozen " VERSION_NUM_STR,is_alive_toggle_thing);
+	DrawFormatString(START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN" to refresh things " VERSION_NUM_STR);
 	
 	if (error_yet_to_press_ok != 0) {
 		y += CHARACTER_HEIGHT;
@@ -1739,7 +1739,6 @@ int main(int argc, char *argv[]) {
 	int old_btn = 0;
 	int enter_button = SCE_SYSTEM_PARAM_ENTER_BUTTON_CROSS;
 	char patch_or_app[sizeof("Patch")];
-	bool is_alive_toggle_thing = 0;
 	struct UrlToPatchTo temp_editing_url;
 	char editing_url_text_buffer[72];
 	u8 error_yet_to_press_ok = 0;
@@ -2498,12 +2497,11 @@ int main(int argc, char *argv[]) {
 		}
 		draw_scene_direct:
 		old_btn = my_btn;
-		draw_scene(font,current_menu,menu_arrow,is_alive_toggle_thing,error_yet_to_press_ok,error_msg,yes_no_game_popup,
+		draw_scene(font,current_menu,menu_arrow,error_yet_to_press_ok,error_msg,yes_no_game_popup,
 		started_a_thread,second_thread_args.current_state,saved_urls_txt_num,second_thread_args.normalise_digest,second_thread_args.use_patch_cache,
 		second_thread_args.offset_based_patch,
 		browse_games_buffer,browse_games_buffer_size,browse_games_buffer_start,global_title_id,global_title_id_folder_type,
 		method_count,patch_lua_names, second_thread_args.join_password);
-		is_alive_toggle_thing = !is_alive_toggle_thing;
 		
         vita2d_end_drawing();
         vita2d_swap_buffers();

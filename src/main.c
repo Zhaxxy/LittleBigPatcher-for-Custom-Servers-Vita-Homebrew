@@ -51,7 +51,7 @@
 #define BTN_START      SCE_CTRL_START
 #define BTN_R3         SCE_CTRL_R3
 #define BTN_L3         SCE_CTRL_L3
-#define BTN_SELECT     SCE_CTRL_SELECT  
+#define BTN_SELECT     SCE_CTRL_SELECT
 #define BTN_SQUARE     SCE_CTRL_SQUARE
 
 // globals instead of macros because we need to swap them in init if the user has circle for enter
@@ -204,7 +204,7 @@ int get_button_pressed(SceCtrlData *pad) {
 	return result;
 }
 
-int set_arrow(int menu_arrow,int btn_pressed, int max_arrow) 
+int set_arrow(int menu_arrow,int btn_pressed, int max_arrow)
 {
 	int new_arrow = menu_arrow;
 
@@ -239,7 +239,7 @@ bool is_valid_title_id(char* title_id) // assumes its uppercase
 			return 0;
 		}
 	}
-	
+
 	return 1;
 }
 
@@ -249,12 +249,12 @@ int save_user_join_pwd(const char * pretty_user_input_join_password) {
 	if (fp == 0) {
 		return -1;
 	}
-	
+
 	if (pretty_user_input_join_password[0] == 0) {
 		fclose(fp);
 		return 0;
 	}
-	
+
 	fputs(pretty_user_input_join_password, fp);
 	fclose(fp);
 	return 0;
@@ -266,9 +266,9 @@ void load_user_join_pwd(char * pretty_user_input_join_password) {
 	if (fp == 0) {
 		return;
 	}
-	
+
 	fread(pretty_user_input_join_password,1,2048,fp);
-	
+
 	fclose(fp);
 }
 
@@ -277,7 +277,7 @@ int save_global_title_id_to_disk() {
 	if (fp == 0) {
 		return -1;
 	}
-	
+
 	fwrite(global_title_id,1,sizeof(global_title_id)-1,fp);
 	fclose(fp);
 	return 0;
@@ -303,23 +303,23 @@ bool load_global_title_id() {
 		}
 	}
 	rewind(fp);
-	
+
 	fread(temp_title_id,1,sizeof(temp_title_id)-1,fp);
-	
+
 	for (int i = 0; temp_title_id[i] != '\0'; i++) {
 		temp_title_id[i] = toupper(temp_title_id[i]);
 	}
-	
+
 	if (!is_valid_title_id(temp_title_id)) {
 		fclose(fp);
 		goto fail_to_load_title_id;
 	}
-	
+
 	fclose(fp);
 	result = strcmp(temp_title_id,global_title_id) != 0;
 	strcpy(global_title_id,temp_title_id);
 	return result;
-	
+
 	fail_to_load_title_id:
 	strcpy(global_title_id,DEFAULT_TITLE_ID);
 	save_global_title_id_to_disk();
@@ -333,7 +333,7 @@ bool is_a_url_selected() {
 	if (selected_url_index > saved_urls_count-1 ) {
 		return 0;
 	}
-	
+
 	return 1;
 }
 
@@ -341,11 +341,11 @@ int title_id_exists(char * title_id)
 {
 	char fname[sizeof("ux0:/FAGDec/patch/ABCD12345/eboot.bin")];
 	sprintf(fname,"ux0:/FAGDec/patch/%s/eboot.bin",title_id); // assumes that title_id is of lenght 9
-	
+
 	if (does_file_exist(fname)) {
 		return TITLE_ID_PATCH;
 	}
-	
+
 	sprintf(fname,"ux0:/FAGDec/app/%s/eboot.bin",title_id); // assumes that title_id is of lenght 9
 
 	if (does_file_exist(fname)) {
@@ -364,7 +364,7 @@ u32 total_count_of_patchable_games(u32 start_offset, u32 end_length)
 	u32 start_counting = 0;
 	DIR *game_dir;
 	struct dirent* reader;
-	
+
 	for (int fagdec_dir_index = 1; fagdec_dir_index < 3; fagdec_dir_index++) {
 		if (total_count >= end_length) {
 			break;
@@ -381,7 +381,7 @@ u32 total_count_of_patchable_games(u32 start_offset, u32 end_length)
 				if (!title_id_exists(reader->d_name)) {
 					continue;
 				}
-				
+
 				if (start_counting >= start_offset) {
 					total_count++;
 					if (total_count >= end_length) {
@@ -411,7 +411,7 @@ u32 load_patchable_games(struct TitleIdAndGameName buffer[], u32 start_offset, u
 	struct dirent* reader;
 	char * game_name;
 	char param_sfo_path[sizeof("ux0:/patch/ABCD12345/sce_sys/param.sfo")];
-	
+
 	for (int fagdec_dir_index = 1; fagdec_dir_index < 3; fagdec_dir_index++) {
 		if (total_count >= end_length) {
 			break;
@@ -428,7 +428,7 @@ u32 load_patchable_games(struct TitleIdAndGameName buffer[], u32 start_offset, u
 				if (!title_id_exists(reader->d_name)) {
 					continue;
 				}
-				
+
 				if (start_counting >= start_offset) {
 					buffer[total_count].title_id_folder_type = fagdec_dir_index;
 					strcpy(buffer[total_count].title_id,reader->d_name);
@@ -438,7 +438,7 @@ u32 load_patchable_games(struct TitleIdAndGameName buffer[], u32 start_offset, u
 					else if (fagdec_dir_index == TITLE_ID_APP) {
 						sprintf(param_sfo_path,"ux0:/app/%s/sce_sys/param.sfo",reader->d_name); // ignore the warning on this line, we already ensured that the folder name is 9 chars long
 					}
-					
+
 					game_name = get_title_id_from_param(param_sfo_path);
 					if (game_name == 0) {
 						strcpy(buffer[total_count].game_name,"Unknown??");
@@ -505,11 +505,11 @@ void write_saved_urls(u8 saved_urls_txt_num) {
 		else {
 			sprintf(write_buffer,"%s\n",url_entry.url);
 		}
-		
+
 		fprintf(fp,write_buffer);
 	}
 	fclose(fp);
-	
+
 }
 
 void load_saved_urls(u8 saved_urls_txt_num) {
@@ -529,20 +529,20 @@ void load_saved_urls(u8 saved_urls_txt_num) {
 	saved_urls_count = 0;
 	while ((len_of_line = __getline(&orig_line, &len, fp)) > 0) {
 		line = strstrip(orig_line);
-		
+
 		// remove any extra chars
 		if (len_of_line > MAX_LINE_LEN_OF_URL_ENTRY) {
 			line[MAX_LINE_LEN_OF_URL_ENTRY] = 0;
 			len_of_line = MAX_LINE_LEN_OF_URL_ENTRY;
 		}
-		
+
 		// getting all the characters after first space, not including the space
 		digest_offset_from_line = strcspn(line, " ");
 		digest_len = len_of_line - digest_offset_from_line;
 
 		struct UrlToPatchTo temp_url;
 		temp_url.url[0] = 0;
-		temp_url.digest[0] = 0;		
+		temp_url.digest[0] = 0;
 
 		if (digest_len != 0) {
 			digest_len--;
@@ -552,24 +552,24 @@ void load_saved_urls(u8 saved_urls_txt_num) {
 			}
 			memcpy(temp_url.digest,line+digest_offset_from_line+1,digest_len);
 			temp_url.digest[digest_len] = 0; // ensure it wont read leftover data
-			
+
 			// removing the digest off the line, itll just be left with the url
 			line[digest_offset_from_line] = 0;
 			len_of_line -= digest_len;
 			len_of_line--; // for the space char
 		}
-		
+
 
 		// remove any extra chars
 		if(len_of_line > MAX_URL_LEN_INCL_NULL-1) {
 			line[MAX_URL_LEN_INCL_NULL-1] = 0;
 			len_of_line = MAX_URL_LEN_INCL_NULL;
 		}
-		
+
 		if (len_of_line != 0) {
 			strcpy(temp_url.url,line);
 		}
-		
+
 		if (strcmp(temp_url.url,"http://lnfinite.site/LITTLEBIGPLANETPS3_XML") == 0) {
 			strcpy(temp_url.url,"http://infinitelbp.com/LITTLEBIGPLANETPS3_XML");
 		}
@@ -585,15 +585,15 @@ void load_saved_urls(u8 saved_urls_txt_num) {
 
 		memcpy(&saved_urls[ready_url_i],&temp_url,sizeof(struct UrlToPatchTo));
 		saved_urls_count++;
-		
-		
+
+
 		ready_url_i++;
 		if (ready_url_i >= sizeof(saved_urls) / sizeof(saved_urls[0])) {
 			break;
 		}
-		
+
     }
-	
+
 	if (ready_url_i < sizeof(saved_urls) / sizeof(saved_urls[0])) {
 		while (ready_url_i < sizeof(saved_urls) / sizeof(saved_urls[0])) {
 			struct UrlToPatchTo temp_url_2;
@@ -604,9 +604,9 @@ void load_saved_urls(u8 saved_urls_txt_num) {
 			ready_url_i++;
 		}
 	}
-	
 
-	
+
+
 	fclose(fp);
 	free(orig_line);
 
@@ -741,7 +741,7 @@ bool install_repatch(bool remove_allefresher) {
 	char * last_dot;
 	int allefresher_line_num = -1;
 	int line_num = 0;
-	
+
 	fp = fopen("ux0:/tai/config.txt","rb");
 	if (fp == 0) {
 		fp = fopen("ur0:/tai/config.txt","rb");
@@ -785,7 +785,7 @@ bool install_repatch(bool remove_allefresher) {
 			}
 
 			// TODO This code allows for lines like ur0:tai/repatch but whos doing that?
-			// 
+			//
 
 			// if theres and underscore in the name, we will only check the text before it
 			line[strcspn(line, "_")] = 0;
@@ -818,7 +818,7 @@ bool install_repatch(bool remove_allefresher) {
 		return 0;
 	}
 	rewind(fp);
-	
+
 	line_num = 0;
 	fp_temp = fopen(TEMP_TAI_CONFIG,"wb");
 	if (fp_temp == 0) {
@@ -835,7 +835,7 @@ bool install_repatch(bool remove_allefresher) {
 			else {
 				fwrite(REPATCH_SKPRX_UX0_ENTRY,1,sizeof(REPATCH_SKPRX_UX0_ENTRY)-1,fp_temp); // do not write the null term
 			}
-			
+
 		}
 		if (line_num == allefresher_line_num) {
 			// comment out the line
@@ -880,7 +880,7 @@ bool install_repatch(bool remove_allefresher) {
 
 int install_repatch_thread(unsigned int arglen, void **argp) {
 	struct SecondThreadArgs *args = *argp;
-	
+
 	if (install_repatch(args->remove_allefresher)) {
 		args->has_finished = 1;
 		sceKernelExitThread(THREAD_RET_REPATCH_INSTALLED);
@@ -919,7 +919,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	char fagdec_eboot[sizeof("ux0:/FAGDec/patch/ABCD12345/eboot.bin")];
 	char repatch_eboot_bin_path[sizeof("ux0:/rePatch/abcd12345/eboot.bin")];
 	char repatch_title_id_folder[sizeof("ux0:/rePatch/abcd12345/")];
-	
+
 	SHA1_CTX ctx;
 	FILE *fp_for_eboot;
 	int eboot_chunk_size;
@@ -929,7 +929,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 
 	sprintf(repatch_eboot_bin_path,"ux0:/rePatch/%s/eboot.bin",args->title_id);
 	sprintf(repatch_title_id_folder,"ux0:/rePatch/%s/",args->title_id);
-	
+
 	switch (args->title_id_folder_type) {
 		case TITLE_ID_PATCH:
 			sprintf(fagdec_eboot,"ux0:/FAGDec/patch/%s/eboot.bin",args->title_id);
@@ -946,13 +946,13 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	sceClibPrintf("Cleaning workspace\n");
 	remove(WORKING_DIR "eboot.bin.elf");
 	remove(WORKING_DIR "eboot.bin");
-	
+
 	if (does_file_exist(WORKING_DIR "eboot.bin.elf") || does_file_exist(WORKING_DIR "eboot.bin.bin")) {
 		args->has_finished = 1;
 		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
 		return THREAD_RET_EBOOT_BACKUP_FAILED;
 	}
-	
+
 	// variables only use if use_patch_cache
 	int line_num_of_caches = 0;
 	char * current_cache_line;
@@ -969,7 +969,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		}
 		snprintf(current_cache_line,current_cache_line_len + 1,"%s%s%s%08X%s%s",my_url.url,my_url.digest,args->title_id,args->title_id_folder_type,args->patch_lua_name,args->join_password);
 		sceClibPrintf("Checking if theres a cache for %s",current_cache_line);
-		
+
 		fp = fopen(CACHE_TXT_FILE, "ab+");
 		if (fp == 0) {
 			args->has_finished = 1;
@@ -977,11 +977,11 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 			return THREAD_RET_EBOOT_BACKUP_FAILED;
 		}
 		rewind(fp);
-		
+
 		char * line = NULL;
 		size_t len = 0;
 		ssize_t len_of_line;
-		
+
 		while ((len_of_line = __getline(&line, &len, fp)) > 0) {
 			if (len_of_line > 1000) {
 				goto continue_and_incr_line_num;
@@ -1016,17 +1016,17 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		}
 		fclose(fp);
 	}
-	
+
 	args->current_state = THREAD_CURRENT_STATE_COPYING_FROM_FAGDEC;
 	sceClibPrintf("Copying FAGDec eboot to workspace\n");
 	copy_file_res = copy_file(WORKING_DIR "eboot.bin",fagdec_eboot);
-	
+
 	if (copy_file_res < 0) {
 		args->has_finished = 1;
 		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
 		return THREAD_RET_EBOOT_BACKUP_FAILED;
 	}
-	
+
 	if (!does_file_exist(WORKING_DIR "eboot.bin")) {
 		args->has_finished = 1;
 		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
@@ -1035,13 +1035,13 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	args->current_state = THREAD_CURRENT_STATE_EBOOT_DECRYPT;
 	sceClibPrintf("Decrypting/decompressing eboot.bin with vita-unmake-fself\n");
 	unmake_fself_res = unmake_fself(WORKING_DIR "eboot.bin",WORKING_DIR "eboot.bin.elf");
-	
+
 	if (unmake_fself_res != 0) {
 		args->has_finished = 1;
 		sceKernelExitThread(THREAD_RET_EBOOT_DECRYPT_FAILED);
 		return THREAD_RET_EBOOT_DECRYPT_FAILED;
 	}
-	
+
 	if (!does_file_exist(WORKING_DIR "eboot.bin.elf")) {
 		args->has_finished = 1;
 		sceKernelExitThread(THREAD_RET_EBOOT_DECRYPT_FAILED);
@@ -1063,7 +1063,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	}
 	if (args->offset_based_patch == OFFSET_BASED_PATCH_VITA_REMOVE_DLC_LOCKS) {
 		const uint8_t LBP_VITA_1_22_STOCK_SHA1[SHA1_BLOCK_SIZE] = {0x34, 0x39, 0x39, 0xd3, 0x14, 0x65, 0x02, 0x17, 0xf9, 0xd3, 0xa5, 0x0b, 0x82, 0xa7, 0x22, 0x87, 0xe0, 0x7f, 0x07, 0x55};
-		
+
 		if (memcmp(sha1_digest,LBP_VITA_1_22_STOCK_SHA1,SHA1_BLOCK_SIZE) != 0) {
 			args->has_finished = 1;
 			sceKernelExitThread(THREAD_RET_UNKNOWN_EBOOT);
@@ -1075,7 +1075,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 			args->has_finished = 1;
 			sceKernelExitThread(THREAD_RET_EBOOT_PATCH_FAILED);
 			return THREAD_RET_EBOOT_PATCH_FAILED;
-		}	
+		}
 
 	}
 
@@ -1083,12 +1083,12 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	sceClibPrintf("start patching\n");
 	clock_t start = clock();
 	sprintf(lua_func_name,"patch_%s",args->patch_lua_name);
-	
+
 	// theese lua things might be unpure, something about me needing to pop the values after, but since it will always end after this idrc to do it
     lua_getglobal(L, lua_func_name);
 
 
-	
+
 	lua_pushstring(L,WORKING_DIR "eboot.bin.elf");
 	lua_pushstring(L,my_url.url);
 	lua_pushstring(L,my_url.digest);
@@ -1111,7 +1111,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	args->current_state = THREAD_CURRENT_STATE_EBOOT_ENCRYPT;
 	sceClibPrintf("Encrypting eboot.bin (elf inject to working eboot.bin)\n");
 	unmake_fself_res = elf_inject(WORKING_DIR "eboot.bin.elf",WORKING_DIR "eboot.bin");
-	
+
 	if (unmake_fself_res != 0) {
 		args->has_finished = 1;
 		sceKernelExitThread(THREAD_RET_EBOOT_DECRYPT_FAILED);
@@ -1119,15 +1119,15 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	}
 	args->current_state = THREAD_CURRENT_STATE_MAKE_REPATCH_FOLDERS;
 	sceClibPrintf("Making rePatch folders if not exist\n");
-	
-	
-	
+
+
+
 	mkdir("ux0:/rePatch/", 0777);
 	mkdir(repatch_title_id_folder, 0777);
 	args->current_state = THREAD_CURRENT_STATE_FINAL_COPY_EBOOT_TO_REPATCH;
 	sceClibPrintf("Finally, copying new working eboot.bin to rePatch folder\n");
 	copy_file_res = copy_file(repatch_eboot_bin_path,WORKING_DIR "eboot.bin");
-	
+
 	if (copy_file_res < 0) {
 		args->has_finished = 1;
 		sceKernelExitThread(THREAD_RET_EBOOT_BACKUP_FAILED);
@@ -1139,9 +1139,9 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 		// it is assumed at this point there is not cache for this eboot as thats checked for eariler
 		char cache_eboot_bin_file[sizeof(CACHE_DIR "eboot_bin_repatch_vita_num_9999.bin")];
 		sprintf(cache_eboot_bin_file,CACHE_DIR "eboot_bin_repatch_vita_num_%d.bin",line_num_of_caches);
-		
+
 		sceClibPrintf("Making cache copy of %s to %s",current_cache_line,cache_eboot_bin_file);
-		
+
 		copy_file_res = copy_file(cache_eboot_bin_file,repatch_eboot_bin_path);
 		if (copy_file_res == -1) {
 			args->has_finished = 1;
@@ -1155,7 +1155,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 			return THREAD_RET_EBOOT_BACKUP_FAILED;
 		}
 		fprintf(fp,current_cache_line); fprintf(fp,"\n");
-		
+
 		fclose(fp);
 	}
 
@@ -1167,19 +1167,19 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 int check_for_updates_thread(unsigned int arglen, void **argp) {
 	struct SecondThreadArgs *args = *argp;
 	int http_init_ret;
-	
+
 	// quick way of not needing to parse json
 	// always assuming that it will start with [{"name":"v0.000
 	char newest_version_tag_buffer[sizeof("[{\"name\":\"v0.000")] = {0};
-	
-	
+
+
 	http_init_ret = http_download_to_buffer(
 		"https://api.github.com/repos/LittleBigPatcherTeam/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew/tags",
 		newest_version_tag_buffer,
 		sizeof(newest_version_tag_buffer)-1,
 		HTTP_ALLOW_SMALLER_BUFFER_SIZE
 	);
-	
+
 	if (http_init_ret == 0) {
 		strcpy(global_newest_version_tag,newest_version_tag_buffer + strlen("[{\"name\":\""));
 		sceClibPrintf("global_newest_version_tag = %s",global_newest_version_tag);
@@ -1190,7 +1190,7 @@ int check_for_updates_thread(unsigned int arglen, void **argp) {
 		sceKernelExitThread(0);
 		return 0;
 	}
-	
+
 	// TODO double check if version is newest or not
 	if (strcmp(VERSION_NUM_STR,global_newest_version_tag) == 0) {
 		args->has_finished = 1;
@@ -1219,7 +1219,7 @@ int vita2d_font_draw_textf_with_bg(vita2d_font *font,u32 colour, u32 bg_colour,i
 	va_start(argptr, text);
 	vsnprintf(buf, sizeof(buf), text, argptr);
 	va_end(argptr);
-	
+
 	// simple read by line
 	char * line = buf;
 	while (line) {
@@ -1259,7 +1259,7 @@ int vita2d_font_draw_textf_with_bg(vita2d_font *font,u32 colour, u32 bg_colour,i
 u32 internal_rainbow_colour_state = 0;
 int internal_rainbow_colour_cur_index = 0;
 /*
-smooth transition for 
+smooth transition for
 
 #FF0000
 #00FF00
@@ -1404,23 +1404,23 @@ char * join_password
 	int y = CHARACTER_HEIGHT;
 	u32 bg_colour;
 	u32 font_colour;
-	
+
 	rainbow_colour = get_next_rainbow_colour();
-	
+
 	bg_colour = TITLE_BG_COLOUR;
 	font_colour = TITLE_FONT_COLOUR;
-	
+
 	if (BACKGROUND_COLOUR == 522001152) {
 		vita2d_set_clear_color(rainbow_colour);
 	}
 	else {
 		vita2d_set_clear_color(BACKGROUND_COLOUR);
 	}
-	
+
 	SetFontColor(TITLE_FONT_COLOUR, TITLE_BG_COLOUR);
-	
+
 	DrawFormatString(START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN" to refresh things " VERSION_NUM_STR);
-	
+
 	if (error_yet_to_press_ok != 0) {
 		y += CHARACTER_HEIGHT;
 		if (error_yet_to_press_ok == 1) {
@@ -1435,7 +1435,7 @@ char * join_password
 		DrawFormatString(x,y,"Press %s to continue",MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN);
 		return;
 	}
-	
+
 	else if (started_a_thread != 0) {
 		y += CHARACTER_HEIGHT;
 		switch (started_a_thread) {
@@ -1455,17 +1455,17 @@ char * join_password
 				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 				DrawString(x, y, "Cleaning workspace");
 				y += CHARACTER_HEIGHT;
-				
+
 				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_COPYING_FROM_FAGDEC) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
 				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 				DrawString(x, y, "Copying eboot.bin from FAGDec to workspace");
 				y += CHARACTER_HEIGHT;
-				
+
 				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_EBOOT_DECRYPT) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
 				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 				DrawString(x, y, "Decrypting/decompressing eboot.bin in workspace");
 				y += CHARACTER_HEIGHT;
-				
+
 
 				if (second_thread_args.offset_based_patch != 0) {
 					bg_colour = (thread_current_state == THREAD_CURRENT_STATE_CALCING_EBOOT_ELF_SHA1) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
@@ -1489,17 +1489,17 @@ char * join_password
 				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 				DrawString(x, y, "Done patching eboot.bin.elf");
 				y += CHARACTER_HEIGHT;
-				
+
 				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_EBOOT_ENCRYPT) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
 				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 				DrawString(x, y, "Encrypting eboot.bin.elf to workspace eboot.bin");
 				y += CHARACTER_HEIGHT;
-				
+
 				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_MAKE_REPATCH_FOLDERS) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
 				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 				DrawString(x, y, "Creating rePatch folders if not exist");
 				y += CHARACTER_HEIGHT;
-				
+
 				bg_colour = (thread_current_state == THREAD_CURRENT_STATE_FINAL_COPY_EBOOT_TO_REPATCH) ? SELECTED_FONT_BG_COLOUR : TITLE_BG_COLOUR;
 				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 				DrawString(x, y, "Copying eboot.bin from workspace to rePatch folder");
@@ -1515,7 +1515,7 @@ char * join_password
 		}
 		return;
 	}
-	
+
 	else if (yes_no_game_popup != 0) {
 		y += CHARACTER_HEIGHT;
 		DrawFormatString(x,y,error_msg);
@@ -1533,13 +1533,13 @@ char * join_password
 
 		return;
 	}
-	
+
     switch (current_menu) {
 		case MENU_MAIN:
-			
+
 			DrawFormatString(x,y,"Main Menu");
 			y += CHARACTER_HEIGHT*2;
-			
+
 			bg_colour = (menu_arrow == 0) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 			DrawString(x,y,"Select url");
@@ -1571,9 +1571,9 @@ char * join_password
 			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 			DrawString(x,y,"Exit");
 			y += CHARACTER_HEIGHT;
-			
+
 			y += CHARACTER_HEIGHT*(3-1);
-			
+
 			SetFontColor(TURNED_ON_FONT_COLOUR,0);
 			DrawString(x,y,"Things will have this font colour if it is selected");
 			y += CHARACTER_HEIGHT*2;
@@ -1591,7 +1591,7 @@ char * join_password
 		case MENU_PATCH_GAMES:
 			DrawFormatString(x,y,"Patch a game");
 			y += CHARACTER_HEIGHT*2;
-			
+
 			bg_colour = (menu_arrow == 0) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 			DrawFormatString(x,y,"Edit Title id: ");
@@ -1629,7 +1629,7 @@ char * join_password
 			else {
 				DrawFormatString(GetFontX(),y,join_password);
 			}
-			
+
 			y += CHARACTER_HEIGHT;
 
 			for (int i = 0; i < method_count; i++) {
@@ -1640,7 +1640,7 @@ char * join_password
 			}
 
 			break;
-			
+
 		case MENU_SELECT_URLS:
 		case MENU_EDIT_URLS:
 			switch (current_menu) {
@@ -1651,9 +1651,9 @@ char * join_password
 					DrawFormatString(x,y,"Edit urls\n(Page %d/99)",saved_urls_txt_num);
 					break;
 			}
-			
+
 			y += CHARACTER_HEIGHT*2;
-			
+
 			int i = 0;
 			int current_url_entry_index;
 			struct UrlToPatchTo url_entry;
@@ -1662,8 +1662,8 @@ char * join_password
 			int temp_new_x_len;
 			//int temp_new_y_len;
 			int i_stop = (current_menu == MENU_EDIT_URLS) ? saved_urls_count*2 : saved_urls_count;
-			
-			
+
+
 			while (i < i_stop) {
 				current_url_entry_index = i;
 				if (current_menu == MENU_EDIT_URLS) {
@@ -1671,27 +1671,27 @@ char * join_password
 				}
 				url_entry = saved_urls[current_url_entry_index];
 
-				
-				
+
+
 				bg_colour = (menu_arrow == i) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 				font_colour = (current_menu == MENU_SELECT_URLS && selected_url_index == i) ? TURNED_ON_FONT_COLOUR : SELECTABLE_NORMAL_FONT_COLOUR;
 				SetFontColor(font_colour, bg_colour);
-				
-				
+
+
 				full_text_len = strlen(url_entry.url) + 1 + strlen(url_entry.digest);
 				temp_new_x_len = TEXT_SIZE;
 				if (full_text_len > MAX_CAPITIAL_W_CHARACTERS_PER_LINE) {
 					new_max_capitial_w_characters_per_line = MAX_CAPITIAL_W_CHARACTERS_PER_LINE;
-					
+
 					//temp_new_y_len = NORMAL_TEXT_Y;
 					while (full_text_len > new_max_capitial_w_characters_per_line) {
-						new_max_capitial_w_characters_per_line += NEW_LINES_AMNT_PER_DIGIT_OF_X_INCREASE; 
+						new_max_capitial_w_characters_per_line += NEW_LINES_AMNT_PER_DIGIT_OF_X_INCREASE;
 						temp_new_x_len -= 1;
 						//temp_new_y_len -= 1;
 					}
 				}
 
-				
+
 				if (current_menu == MENU_EDIT_URLS) {
 					if (i % 2 == 0) { // url i even case
 						DrawFormatStringWithSize(temp_new_x_len,x,y,"%s",url_entry.url);
@@ -1727,7 +1727,7 @@ char * join_password
 				}
 				y += CHARACTER_HEIGHT;
 			}
-			
+
 			break;
 	}
 
@@ -1751,7 +1751,7 @@ int main(int argc, char *argv[]) {
 	char param_sfo_path[sizeof("ux0:/patch/ABCD12345/sce_sys/param.sfo")];
 	char error_msg[1000];
 	FILE *vita_shell_lastdir;
-	
+
 	char pretty_showey[500];
 	bool has_done_a_switch = 1;
 	u8 current_menu = MENU_MAIN;
@@ -1762,15 +1762,15 @@ int main(int argc, char *argv[]) {
 	u32 browse_games_buffer_max_size = MAX_LINES-2; // minus 2 for the extra game missing msg, its 2 lines
 	u32 browse_games_buffer_size = 0;
 	struct TitleIdAndGameName browse_games_buffer[browse_games_buffer_max_size];
-	
+
 	int temp_title_id_folder_type;
 	bool first_time = 1;
 	bool checked_for_updates_yet = 0;
 	bool open_vitashell_for_update_dir = 0;
 	int repatch_installed_res;
-	
+
 	int launch_by_uri_res;
-	
+
 	mkdir(ROOT_DIR, 0777);
 	mkdir(UPDATES_DIR, 0777);
 	mkdir(WORKING_DIR, 0777);
@@ -1778,7 +1778,7 @@ int main(int argc, char *argv[]) {
 
 	FILE *fp_to_write_placeholder;
 	bool file_no_exist_or_is_empty = 0;
-	
+
 	fp_to_write_placeholder = fopen(NEW_NUM_1_SAVED_URLS_TXT,"rb");
 	if (fp_to_write_placeholder == 0) {
 		file_no_exist_or_is_empty = 1;
@@ -1797,7 +1797,7 @@ int main(int argc, char *argv[]) {
 		fwrite(DEFAULT_URLS,1,sizeof(DEFAULT_URLS)-1,fp_to_write_placeholder);
 		fclose(fp_to_write_placeholder);
 	}
-	
+
 	fp_to_write_placeholder = fopen(COLOUR_CONFIG_FILE,"rb");
 	if (fp_to_write_placeholder == 0) {
 		file_no_exist_or_is_empty = 1;
@@ -1807,7 +1807,7 @@ int main(int argc, char *argv[]) {
 		file_no_exist_or_is_empty = ftell(fp_to_write_placeholder) == 0;
 		fclose(fp_to_write_placeholder);
 	}
-	
+
 	if (file_no_exist_or_is_empty) {
 		fp_to_write_placeholder = fopen(COLOUR_CONFIG_FILE,"wb");
 		if (fp_to_write_placeholder == 0) {
@@ -1819,12 +1819,12 @@ int main(int argc, char *argv[]) {
 
 
 	mkdir(CACHE_DIR, 0777);
-	
+
 	fp_to_write_placeholder = fopen(PATCH_CACHE_FILE_EXISTS_THEN_TRUE,"rb");
 	if (fp_to_write_placeholder != 0) {
 		fclose(fp_to_write_placeholder);
 	}
-	
+
 	second_thread_args.use_patch_cache = fp_to_write_placeholder != 0;
 
 
@@ -1849,15 +1849,15 @@ int main(int argc, char *argv[]) {
 	SceUID second_thread_id;
 	int second_thread_retval;
 	void *second_args_pointer_to_avoid_copy = &second_thread_args;
-	
+
 	sceShellUtilInitEvents(0);
 
 	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
 	memset(&pad, 0, sizeof(pad));
-	
+
 	netInit();
 	httpInit();
-	
+
 	init_for_input();
 
 	sceAppUtilSystemParamGetInt(SCE_SYSTEM_PARAM_ID_ENTER_BUTTON, &enter_button);
@@ -1887,7 +1887,7 @@ int main(int argc, char *argv[]) {
 		sceClibPrintf("Error: %s\n", lua_tostring(L, -1));
 		return 1;
 	}
-	
+
 	// checking for patch functions
 	char * func_name;
 	int fun_name_len;
@@ -1895,7 +1895,7 @@ int main(int argc, char *argv[]) {
 	int full_method_count = 0;
 	char method_name_temp[sizeof(patch_lua_names[0].patch_name)+sizeof("patch_method_")];
 	char * method_name_string_value_temp;
-	
+
 	lua_pushglobaltable(L);
 	lua_pushnil(L);
 	while (lua_next(L, -2)) {
@@ -1924,9 +1924,9 @@ int main(int argc, char *argv[]) {
 		strcpy(patch_lua_names[method_index].patch_name,func_name+strlen("patch_"));
 		method_index++;
 		lua_pop_continue:
-		lua_pop(L, 1); 
+		lua_pop(L, 1);
 	}
-	lua_pop(L, 1); 
+	lua_pop(L, 1);
 
 	for (method_index = 0; method_index < method_count; method_index++) {
 		sprintf(method_name_temp,"patch_method_%s",patch_lua_names[method_index].patch_name);
@@ -1949,7 +1949,7 @@ int main(int argc, char *argv[]) {
 	lua_setglobal(L, "IS_BIG_ENDIAN");
 
 	method_index = 0;
-	
+
 	vita2d_init();
 	vita2d_font *font = vita2d_load_font_mem(NotoSans_Regular_ttf_bin, NotoSans_Regular_ttf_bin_len);
 
@@ -1957,7 +1957,7 @@ int main(int argc, char *argv[]) {
 		my_btn = get_button_pressed(&pad);
 		vita2d_start_drawing();
 		vita2d_clear_screen();
-		
+
 		if (first_time) {
 			if (!checked_for_updates_yet) {
 				if (!started_a_thread) {
@@ -1971,11 +1971,11 @@ int main(int argc, char *argv[]) {
 					assert(sceKernelDeleteThread(second_thread_id) == 0);
 					second_thread_args.has_finished = 0;
 					started_a_thread = 0;
-					
+
 					exit_after_done = 1;
 					error_yet_to_press_ok = 1;
 					allow_triangle_bypass_exit_after_done = 1;
-					
+
 					if (global_newest_version_tag[0] == 0) {
 						sprintf(error_msg,"Could not get newest version\nPlease check your internet connection then open this again");
 					}
@@ -1993,7 +1993,7 @@ int main(int argc, char *argv[]) {
 						exit_after_done = 0;
 						allow_triangle_bypass_exit_after_done = 0;
 					}
-					
+
 					checked_for_updates_yet = 1;
 				}
 				goto draw_scene_direct;
@@ -2014,7 +2014,7 @@ int main(int argc, char *argv[]) {
 					goto done_with_first_time_checking;
 				}
 				return 0;
-				
+
 			}
 			repatch_installed_res = is_repatch_installed();
 			if (is_repatch_installed() < 0) {
@@ -2043,7 +2043,7 @@ int main(int argc, char *argv[]) {
 			goto draw_scene_direct;
 		}
 
-		
+
  		if (!(my_btn & old_btn)) {
 			// special menus, popups
 			if (error_yet_to_press_ok) {
@@ -2073,7 +2073,7 @@ int main(int argc, char *argv[]) {
 					}
 					error_yet_to_press_ok = 0;
 				}
-				/* 
+				/*
 				I will prefer people to not use outdated versions, but i understand that people have their reasons, so they can press BTN_TRIANGLE to continue.
 				However the only mention of that will be here
 				*/
@@ -2087,14 +2087,14 @@ int main(int argc, char *argv[]) {
 				}
 				goto draw_scene_direct;
 			}
-			
+
 			else if (started_a_thread) {
 				if (second_thread_args.has_finished) {
 					assert(sceKernelWaitThreadEnd(second_thread_id,&second_thread_retval,0) == 0);
 					assert(sceKernelDeleteThread(second_thread_id) == 0);
 					second_thread_args.has_finished = 0;
 					started_a_thread = 0;
-					
+
 					switch (second_thread_retval) {
 						case THREAD_RET_EBOOT_REVERTED:
 							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_SUCCESS;
@@ -2111,7 +2111,7 @@ int main(int argc, char *argv[]) {
 							menu_arrow = 0;
 							goto draw_scene_direct;
 							break;
-						
+
 						case THREAD_RET_EBOOT_PATCHED:
 							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_SUCCESS;
 							sprintf(error_msg,"Succesfully patched (%s)%s",patch_method,pretty_showey);
@@ -2131,7 +2131,7 @@ int main(int argc, char *argv[]) {
 						case THREAD_RET_EBOOT_DECRYPT_FAILED:
 							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
 							sprintf(error_msg,"Could not decrypt eboot.bin on%s",pretty_showey);
-							
+
 							current_menu = MENU_PATCH_GAMES;
 							menu_arrow = 0;
 							exit_after_done = 1;
@@ -2182,15 +2182,15 @@ int main(int argc, char *argv[]) {
 						default:
 							assert(0);
 					}
-					
+
 				}
 				goto draw_scene_direct;
 			}
-			
+
 			else if (yes_no_game_popup != 0) {
 				if (my_btn & BTN_CROSS) {
 					if (menu_arrow == 1) {
-						
+
 					}
 					else {
 						switch (yes_no_game_popup) {
@@ -2240,7 +2240,7 @@ int main(int argc, char *argv[]) {
 				load_config();
 				menu_arrow = 0;
 			}
-			
+
 			// This might be differnt depdning on what menu but for now itll suffice
 			if (my_btn & BTN_CIRCLE) {
 				DONE_A_SWITCH;
@@ -2313,7 +2313,7 @@ int main(int argc, char *argv[]) {
 										save_global_title_id_to_disk();
 										break;
 									}
-									
+
 								}
 								break;
 							case 1:
@@ -2336,7 +2336,7 @@ int main(int argc, char *argv[]) {
 								save_user_join_pwd(second_thread_args.join_password);
 								break;
 							default:
-								
+
 								if (!(temp_title_id_folder_type = title_id_exists(global_title_id))) {
 									error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
 									sprintf(error_msg,"We could not find %s, is the title id correct? ensure you have\nDECRYPT(SELF) on the game patch eboot.bin in FAGDec",global_title_id);
@@ -2356,7 +2356,7 @@ int main(int argc, char *argv[]) {
 									strcpy(patch_or_app,"App");
 									sprintf(param_sfo_path,"ux0:/app/%s/sce_sys/param.sfo",global_title_id);
 								}
-								
+
 								game_title = get_title_id_from_param(param_sfo_path);
 								if (game_title == 0 ) {
 									game_title = malloc(sizeof("Unknown??"));
@@ -2368,12 +2368,12 @@ int main(int argc, char *argv[]) {
 								else {
 									sprintf(pretty_showey,"\n%s\nType: %s Title id: %s\nwith the url\n%s",game_title,patch_or_app,global_title_id,temp_show.url);
 								}
-								
+
 								if (menu_arrow == 4) {
 									yes_no_game_popup = YES_NO_GAME_POPUP_REVERT_EBOOT;
 									sprintf(error_msg,"Do you want to revert patches on\n%s\nTitle id: %s",game_title,global_title_id);
 								}
-								
+
 								else {
 									method_index = menu_arrow - MINUS_MENU_ARROW_AMNT_TO_GET_PATCH_LUA_INDEX;
 									strcpy(patch_method,patch_lua_names[method_index].patch_method);
@@ -2382,7 +2382,7 @@ int main(int argc, char *argv[]) {
 									sprintf(error_msg,"Do you want to patch (%s)%s",patch_method,pretty_showey);
 								}
 								free(game_title);
-								
+
 								current_menu = MENU_PATCH_GAMES;
 								menu_arrow = 1;
 								goto draw_scene_direct;
@@ -2395,11 +2395,11 @@ int main(int argc, char *argv[]) {
 					case MENU_EDIT_URLS:
 						selected_url_index = RESET_SELECTED_URL_INDEX;
 						temp_editing_url = saved_urls[menu_arrow/2];
-						
+
 						if (menu_arrow % 2 == 0) { // url menu_arrow even case
 							strcpy(editing_url_text_buffer,temp_editing_url.url);
 							input("Enter in a URL",editing_url_text_buffer,sizeof(temp_editing_url.url));
-							
+
 							strcpy(saved_urls[menu_arrow/2].url,editing_url_text_buffer);
 							strcpy(saved_urls[menu_arrow/2].digest,temp_editing_url.digest);
 						}
@@ -2409,19 +2409,19 @@ int main(int argc, char *argv[]) {
 							strcpy(saved_urls[menu_arrow/2].digest,editing_url_text_buffer);
 							strcpy(saved_urls[menu_arrow/2].url,temp_editing_url.url);
 						}
-						
+
 						write_saved_urls(saved_urls_txt_num);
-						
+
 						break;
 					case MENU_BROWSE_GAMES:
 						strcpy(global_title_id,browse_games_buffer[menu_arrow - browse_games_buffer_start].title_id);
 						global_title_id_folder_type = browse_games_buffer[menu_arrow - browse_games_buffer_start].title_id_folder_type;
-						save_global_title_id_to_disk();	
+						save_global_title_id_to_disk();
 						break;
 				}
 				// put code here if you dont want the menu arrow to reset
 				if (current_menu == MENU_BROWSE_GAMES) {
-				
+
 				}
 				else {
 					menu_arrow = 0;
@@ -2433,11 +2433,11 @@ int main(int argc, char *argv[]) {
 						// do first time code here
 						has_done_a_switch = 0;
 					}
-					
+
 					menu_arrow = set_arrow(menu_arrow,my_btn,MENU_MAIN_ARROW);
 
 					break;
-				
+
 				case MENU_PATCH_GAMES:
 					if (has_done_a_switch) {
 						// do first time code here
@@ -2448,19 +2448,19 @@ int main(int argc, char *argv[]) {
 							menu_arrow = 0;
 							goto draw_scene_direct;
 						}
-						
+
 						has_done_a_switch = 0;
 					}
-					
+
 					menu_arrow = set_arrow(menu_arrow,my_btn,MENU_PATCH_GAMES_ARROW);
 
 					break;
-				
+
 				case MENU_EDIT_URLS:
 				case MENU_SELECT_URLS:
 					if (has_done_a_switch) {
 						load_saved_urls(saved_urls_txt_num);
-						
+
 						has_done_a_switch = 0;
 					}
 					if (current_menu == MENU_EDIT_URLS) {
@@ -2470,7 +2470,7 @@ int main(int argc, char *argv[]) {
 						menu_arrow = set_arrow(menu_arrow,my_btn,MENU_SELECT_URLS_ARROW);
 					}
 					break;
-				
+
 				case MENU_BROWSE_GAMES:
 					if (has_done_a_switch) {
 						browse_games_arrow = total_count_of_patchable_games(0,0xFFFFFFFF) - 1;
@@ -2489,7 +2489,7 @@ int main(int argc, char *argv[]) {
 						browse_games_buffer_start += browse_games_buffer_max_size;
 						browse_games_buffer_size = load_patchable_games(browse_games_buffer,browse_games_buffer_start,browse_games_buffer_max_size);
 					}
-					
+
 					break;
 
 			}
@@ -2502,7 +2502,7 @@ int main(int argc, char *argv[]) {
 		second_thread_args.offset_based_patch,
 		browse_games_buffer,browse_games_buffer_size,browse_games_buffer_start,global_title_id,global_title_id_folder_type,
 		method_count,patch_lua_names, second_thread_args.join_password);
-		
+
         vita2d_end_drawing();
         vita2d_swap_buffers();
 	}

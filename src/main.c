@@ -166,7 +166,7 @@ struct TitleIdAndGameName {
 };
 
 struct LuaPatchDetails {
-	char patch_name[PATCH_LUA_SIZE];
+	char patch_name[PATCH_LUA_SIZE + 1];
 	char patch_method[PATCH_METHOD_LUA_STRING_SIZE];
 };
 
@@ -925,7 +925,7 @@ int apply_patches_thread(unsigned int arglen, void **argp) {
 	int eboot_chunk_size;
 	uint8_t sha1_digest[SHA1_BLOCK_SIZE-1];
 
-	char lua_func_name[PATCH_LUA_SIZE + sizeof("patch_")];
+	char lua_func_name[PATCH_LUA_SIZE + 1 + sizeof("patch_")];
 
 	sprintf(repatch_eboot_bin_path,"ux0:/rePatch/%s/eboot.bin",args->title_id);
 	sprintf(repatch_title_id_folder,"ux0:/rePatch/%s/",args->title_id);

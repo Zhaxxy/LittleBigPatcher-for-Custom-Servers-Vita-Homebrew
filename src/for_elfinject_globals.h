@@ -18,7 +18,7 @@ struct SecondThreadArgs {
 	bool use_patch_cache;
 	int offset_based_patch;
 	bool remove_allefresher;
-	char patch_lua_name[PATCH_LUA_SIZE];
+	char patch_lua_name[PATCH_LUA_SIZE + 1];
 	int title_id_folder_type;
     char title_id[sizeof("BCES12345")];
 };

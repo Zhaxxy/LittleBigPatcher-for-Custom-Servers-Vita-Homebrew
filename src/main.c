@@ -108,9 +108,7 @@ int BTN_CIRCLE;
 #define MENU_EDIT_URLS_ARROW saved_urls_count-1
 
 
-#define MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES 6-1
-#define MINUS_MENU_ARROW_AMNT_TO_GET_PATCH_LUA_INDEX MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES + 1
-#define MENU_PATCH_GAMES_ARROW MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES+method_count
+#define MENU_PATCH_GAMES_ARROW 7-1
 #define MENU_URL_EDITOR 3
 #define MENU_PATCH_GAMES 4
 
@@ -1646,12 +1644,10 @@ char * join_password
 
 			y += CHARACTER_HEIGHT;
 
-			for (int i = 0; i < method_count; i++) {
-				bg_colour = (menu_arrow-MINUS_MENU_ARROW_AMNT_TO_GET_PATCH_LUA_INDEX == i) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
-				SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
-				DrawFormatString(x,y,"Patch! (%s)",patch_lua_names[i].patch_method);
-				y += CHARACTER_HEIGHT;
-			}
+			bg_colour = (menu_arrow == 6) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
+			DrawFormatString(x,y,"Patch!");
+			y += CHARACTER_HEIGHT;
 
 			break;
 
@@ -2435,7 +2431,14 @@ int main(int argc, char *argv[]) {
 								}
 
 								else {
-									method_index = menu_arrow - MINUS_MENU_ARROW_AMNT_TO_GET_PATCH_LUA_INDEX;
+									// if theres an invalid patch_name in the saved_url, just use the first one
+									method_index = 0;
+									for (int i = 0; i < method_count; i++) {
+										if (strcmp(saved_urls[selected_url_index].patch_name,patch_lua_names[i].patch_name) == 0) {
+											method_index = i;
+											break;
+										}
+									}
 									strcpy(patch_method,patch_lua_names[method_index].patch_method);
 									strcpy(second_thread_args.patch_lua_name,patch_lua_names[method_index].patch_name);
 									yes_no_game_popup = YES_NO_GAME_POPUP_PATCH_GAME;

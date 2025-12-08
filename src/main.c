@@ -504,7 +504,7 @@ char *strstrip(char *s)
         return s;
 }
 
-void write_saved_urls(u8 saved_urls_txt_num) { sceClibPrintf("WRITESAVE_1\n");
+void write_saved_urls(u8 saved_urls_txt_num) {
 	struct UrlToPatchTo url_entry;
 	char write_buffer[sizeof(url_entry.url) + 1 + sizeof(url_entry.digest) + 1 + sizeof(url_entry.patch_name) + 1 + 1];
 
@@ -525,7 +525,6 @@ void write_saved_urls(u8 saved_urls_txt_num) { sceClibPrintf("WRITESAVE_1\n");
 		fprintf(fp,write_buffer);
 	}
 	fclose(fp);
-	sceClibPrintf("WRITESAVE_2\n");
 }
 
 void load_saved_urls(u8 saved_urls_txt_num) {
@@ -2470,9 +2469,7 @@ int main(int argc, char *argv[]) {
 								if (editing_url_text_buffer[0] == 0) {
 									goto edit_url_input;
 								}
-								sceClibPrintf("sexxxx1\n");
 								strcpy(saved_urls[selected_url_index].url,editing_url_text_buffer);
-								sceClibPrintf("sexxxx2\n");
 								break;
 							case 1:
 								strcpy(editing_url_text_buffer,saved_urls[selected_url_index].digest);

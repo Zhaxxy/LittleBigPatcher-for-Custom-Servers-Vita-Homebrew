@@ -16,9 +16,10 @@
 #define PATCH_LUA_FILE "app0:/" PATCH_LUA_FILE_NAME
 
 
-#define DEFAULT_URLS "http://lighthouse.lbpunion.com/LITTLEBIGPLANETPS3_XML\n"\
-					 "http://lbp.lbpbonsai.com/lbp CustomServerDigest\n"\
-					 "http://infinitelbp.com/LITTLEBIGPLANETPS3_XML\n"\
+#define DEFAULT_URLS "http://lighthouse.lbpunion.com/LITTLEBIGPLANETPS3_XML lbp_main\n"\
+					 "http://lbp.lbpbonsai.com/lbp lbp_main CustomServerDigest\n"\
+					 "http://infinitelbp.com/LITTLEBIGPLANETPS3_XML lbp_main\n"\
+					 "http://google.com/use_this_on_cross_controller_app vita_lbp_vita_cross_controller\n"\
 
 #define DEFAULT_COLOUR_CONFIG "// they are rgba hex colour codes, not rgb hex colour codes, so if you want red FF0000 for example, put in #FF0000FF, othwise it wont be visible\n"\
 							  "TITLE_FONT_COLOUR #ffffffff // white\n"\
@@ -34,9 +35,14 @@
 							  "SUCCESS_MESSAGE_BG_COLOUR #00000000 // invisible\n"\
 
 #define OLD_SAVED_URLS_TXT ROOT_DIR "saved_urls.txt"
-#define NEW_NUM_1_SAVED_URLS_TXT ROOT_DIR "saved_urls_1.txt"
-#define SAVED_URLS_TXT_FIRST_HALF ROOT_DIR "saved_urls"
+#define OLD_VERSION_2_SAVED_URLS_STRING_STARTER "saved_urls"
+#define ARCHIVE_DIR ROOT_DIR "your_old_data/"
+#define NEW_NUM_1_SAVED_URLS_TXT ROOT_DIR "version_3_saved_urls_1.txt"
+#define SAVED_URLS_TXT_FIRST_HALF ROOT_DIR "version_3_saved_urls"
 #define SAVED_URLS_TXT_SECOND_HALF ".txt"
+
+#define OLD_VERSION_2_SAVED_URLS_TXT_FIRST_HALF ROOT_DIR OLD_VERSION_2_SAVED_URLS_STRING_STARTER
+#define OLD_VERSION_2_SAVED_URLS_TXT_SECOND_HALF ".txt"
 
 #define FAGDEC_VPK_LOCATION "ux0:/app/LBPC59548/fagdec_vpk/"
 

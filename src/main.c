@@ -1809,6 +1809,27 @@ int main(int argc, char *argv[]) {
 		fclose(fp_to_write_placeholder);
 	}
 
+	mkdir(ARCHIVE_DIR, 0777);
+	
+	DIR *dir_with_old_saved_urls = opendir(ROOT_DIR);
+	struct dirent* reader;
+	char full_path_src[1024 + strlen(ROOT_DIR)];
+	char full_path_dst[1024 + strlen(ARCHIVE_DIR)];
+	if (dir_with_old_saved_urls != NULL) {
+		while ((reader = readdir(dir_with_old_saved_urls)) != NULL) {
+			if (strcmp(reader->d_name,".") == 0 || strcmp(reader->d_name,"..") == 0) {
+				continue;
+			}
+			if (strncmp(reader->d_name, OLD_VERSION_2_SAVED_URLS_STRING_STARTER, strlen(OLD_VERSION_2_SAVED_URLS_STRING_STARTER)) == 0) {
+				snprintf(full_path_src, sizeof(full_path_src), "%s%s", ROOT_DIR, reader->d_name);
+				snprintf(full_path_dst, sizeof(full_path_dst), "%s%s", ARCHIVE_DIR, reader->d_name);
+				rename(full_path_src,full_path_dst);
+			}
+			
+		}
+		closedir(dir_with_old_saved_urls);
+	}
+
 	fp_to_write_placeholder = fopen(COLOUR_CONFIG_FILE,"rb");
 	if (fp_to_write_placeholder == 0) {
 		file_no_exist_or_is_empty = 1;

@@ -103,7 +103,7 @@ int BTN_CIRCLE;
 #define MENU_SELECT_URLS_ARROW saved_urls_count-1
 
 #define MENU_EDIT_URLS 2
-#define MENU_EDIT_URLS_ARROW (saved_urls_count-1)*2+1
+#define MENU_EDIT_URLS_ARROW saved_urls_count-1
 
 
 #define MENU_PATCH_GAMES_ARROW_NOT_INCL_PATCHES 6-1
@@ -1672,14 +1672,11 @@ char * join_password
 			int new_max_capitial_w_characters_per_line;
 			int temp_new_x_len;
 			//int temp_new_y_len;
-			int i_stop = (current_menu == MENU_EDIT_URLS) ? saved_urls_count*2 : saved_urls_count;
+			int i_stop = saved_urls_count;
 
 
 			while (i < i_stop) {
 				current_url_entry_index = i;
-				if (current_menu == MENU_EDIT_URLS) {
-					current_url_entry_index = i/2; // relying on round down, 3/2==1
-				}
 				url_entry = saved_urls[current_url_entry_index];
 
 
@@ -1703,20 +1700,8 @@ char * join_password
 				}
 
 
-				if (current_menu == MENU_EDIT_URLS) {
-					if (i % 2 == 0) { // url i even case
-						DrawFormatStringWithSize(temp_new_x_len,x,y,"%s",url_entry.url);
-					}
-					else { // digest i odd case
-						DrawFormatStringWithSize(temp_new_x_len,GetFontX(),y," %s",url_entry.digest);
-						y += CHARACTER_HEIGHT;
-					}
-
-				}
-				else {
-					DrawFormatStringWithSize(temp_new_x_len,x,y,"%s %s",url_entry.url,url_entry.digest);
-					y += CHARACTER_HEIGHT;
-				}
+				DrawFormatStringWithSize(temp_new_x_len,x,y,"%s",url_entry.url);
+				y += CHARACTER_HEIGHT;
 
 				i++;
 			}
@@ -2426,23 +2411,15 @@ int main(int argc, char *argv[]) {
 						break;
 					case MENU_EDIT_URLS:
 						selected_url_index = RESET_SELECTED_URL_INDEX;
-						temp_editing_url = saved_urls[menu_arrow/2];
 
-						if (menu_arrow % 2 == 0) { // url menu_arrow even case
-							strcpy(editing_url_text_buffer,temp_editing_url.url);
-							input("Enter in a URL",editing_url_text_buffer,sizeof(temp_editing_url.url));
-							remove_spaces(editing_url_text_buffer);
 
-							strcpy(saved_urls[menu_arrow/2].url,editing_url_text_buffer);
-							strcpy(saved_urls[menu_arrow/2].digest,temp_editing_url.digest);
-						}
-						else { // digest menu_arrow odd case
-							strcpy(editing_url_text_buffer,temp_editing_url.digest);
-							input("Enter in a digest key, put in CustomServerDigest if this is a refresh server otherwise leave empty",editing_url_text_buffer,sizeof(temp_editing_url.digest));
-							remove_spaces(editing_url_text_buffer);
-							strcpy(saved_urls[menu_arrow/2].digest,editing_url_text_buffer);
-							strcpy(saved_urls[menu_arrow/2].url,temp_editing_url.url);
-						}
+						temp_editing_url = saved_urls[menu_arrow];
+
+						strcpy(editing_url_text_buffer,temp_editing_url.url);
+						input("Enter in a URL",editing_url_text_buffer,sizeof(temp_editing_url.url));
+						remove_spaces(editing_url_text_buffer);
+						strcpy(saved_urls[menu_arrow].url,editing_url_text_buffer);
+						strcpy(saved_urls[menu_arrow].digest,temp_editing_url.digest);
 
 						write_saved_urls(saved_urls_txt_num);
 

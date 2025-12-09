@@ -137,7 +137,7 @@ char MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN[3];
 #define MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN ""
 
 
-#define START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT 618
+#define START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT 890
 
 #define DEFAULT_TITLE_ID "PCSF00000"
 
@@ -1430,7 +1430,7 @@ char * join_password
 
 	SetFontColor(TITLE_FONT_COLOUR, TITLE_BG_COLOUR);
 
-	DrawFormatString(START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN" to refresh things " VERSION_NUM_STR);
+	DrawFormatString(START_X_FOR_PRESS_TO_REFRESH_THINGS_TEXT,y,VERSION_NUM_STR);
 
 	if (error_yet_to_press_ok != 0) {
 		y += CHARACTER_HEIGHT;
@@ -1589,7 +1589,7 @@ char * join_password
 			DrawString(x,y,"Things will have this font colour if it is selected");
 			y += CHARACTER_HEIGHT*2;
 			SetFontColor(TITLE_FONT_COLOUR,TITLE_BG_COLOUR);
-			DrawFormatString(x,y,"Press %s to enter menus and select things",MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN);
+			DrawFormatString(x,y,"Press %s to enter menus and select things, press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN" to refresh things",MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN);
 			y += CHARACTER_HEIGHT*2;
 			DrawFormatString(x,y,"Press %s to go back to the previous menu",MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CIRCLE_BTN);
 			y += CHARACTER_HEIGHT*2;

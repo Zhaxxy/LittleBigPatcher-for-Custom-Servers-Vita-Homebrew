@@ -1407,7 +1407,7 @@ u8 saved_urls_txt_num, bool normalise_digest_checked, bool use_patch_cache_check
 struct TitleIdAndGameName browse_games_buffer[], u32 browse_games_buffer_size, u32 browse_games_buffer_start,
 char * global_title_id, int global_title_id_folder_type,
 int method_count, struct LuaPatchDetails patch_lua_names[],
-char * join_password
+char * join_password, bool allow_triangle_bypass_exit_after_done
 ) {
 	u32 rainbow_colour;
 	int x_get_font;
@@ -1444,6 +1444,10 @@ char * join_password
 		y += CHARACTER_HEIGHT*8; // give a bunch of space for title
 		SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, SELECTED_FONT_BG_COLOUR);
 		DrawFormatString(x,y,"Press %s to continue",MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_CROSS_BTN);
+		if (allow_triangle_bypass_exit_after_done) {
+			y += CHARACTER_HEIGHT;
+			DrawFormatString(x,y,"Press "MY_CUSTOM_EDIT_OF_NOTO_SANS_FONT_TRIANGLE_BTN" to skip update");
+		}
 		return;
 	}
 
@@ -2125,10 +2129,7 @@ int main(int argc, char *argv[]) {
 					}
 					error_yet_to_press_ok = 0;
 				}
-				/*
-				I will prefer people to not use outdated versions, but i understand that people have their reasons, so they can press BTN_TRIANGLE to continue.
-				However the only mention of that will be here
-				*/
+
 				if (my_btn & BTN_TRIANGLE) {
 					if (allow_triangle_bypass_exit_after_done) {
 						exit_after_done = 0;
@@ -2575,7 +2576,7 @@ int main(int argc, char *argv[]) {
 		started_a_thread,second_thread_args.current_state,saved_urls_txt_num,second_thread_args.normalise_digest,second_thread_args.use_patch_cache,
 		second_thread_args.offset_based_patch,
 		browse_games_buffer,browse_games_buffer_size,browse_games_buffer_start,global_title_id,global_title_id_folder_type,
-		method_count,patch_lua_names, second_thread_args.join_password);
+		method_count,patch_lua_names, second_thread_args.join_password,allow_triangle_bypass_exit_after_done);
 
         vita2d_end_drawing();
         vita2d_swap_buffers();

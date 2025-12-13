@@ -2577,7 +2577,7 @@ int main(int argc, char *argv[]) {
 						// do first time code here
 						if (!is_a_url_selected()) {
 							error_yet_to_press_ok = ERROR_YET_TO_PRESS_OK_FAIL;
-							strcpy(error_msg,"Please select a url in Select Url menu");
+							strcpy(error_msg,"Please select a URL in Select URL menu");
 							current_menu = MENU_MAIN;
 							menu_arrow = 0;
 							goto draw_scene_direct;

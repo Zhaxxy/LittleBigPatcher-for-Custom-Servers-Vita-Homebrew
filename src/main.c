@@ -105,7 +105,7 @@ int BTN_CIRCLE;
 #define MINUS_MENU_ARROW_AMNT_URL_EDITOR_TO_GET_PATCH_LUA_INDEX 2
 
 #define MENU_EDIT_URLS 2
-#define MENU_EDIT_URLS_ARROW saved_urls_count-1
+#define MENU_EDIT_URLS_ARROW (saved_urls_count >= MAX_SAVED_URLS_AMNT) ? (saved_urls_count-1) : (saved_urls_count-1)+1
 
 
 #define MENU_PATCH_GAMES_ARROW 7-1
@@ -120,6 +120,7 @@ int BTN_CIRCLE;
 #define YES_NO_GAME_POPUP_PATCH_GAME 2
 #define YES_NO_GAME_POPUP_INSTALL_REPATCH 3
 #define YES_NO_GAME_POPUP_REMOVE_ALLEFRESHER 4
+#define YES_NO_GAME_POPUP_DELETE_URL 5
 
 #define CURRENTLY_CHECKING_FOR_UPDATES 5
 
@@ -179,6 +180,7 @@ struct UrlToPatchTo {
 
 
 struct UrlToPatchTo saved_urls[MAX_LINES-1];
+#define MAX_SAVED_URLS_AMNT sizeof(saved_urls) / sizeof(saved_urls[0])
 #define RESET_SELECTED_URL_INDEX sizeof(saved_urls) / sizeof(saved_urls[0]) + 1
 s8 selected_url_index = RESET_SELECTED_URL_INDEX;
 s8 saved_urls_count = 0;
@@ -274,7 +276,18 @@ void load_user_join_pwd(char * pretty_user_input_join_password) {
 	fclose(fp);
 }
 
-// Source - https://stackoverflow.com/a
+// Source - https://stackoverflow.com/questions/15821123/removing-elements-from-an-array-in-c
+// Posted by Ben, modified by community. See post 'Timeline' for change history
+// Retrieved 2025-12-13, License - CC BY-SA 4.0
+
+void remove_element(struct UrlToPatchTo *array, int index, int array_length)
+{
+   int i;
+   for(i = index; i < array_length - 1; i++) array[i] = array[i + 1];
+}
+
+
+// Source - https://stackoverflow.com/questions/1726302/remove-spaces-from-a-string-in-c
 // Posted by Aaron, modified by community. See post 'Timeline' for change history
 // Retrieved 2025-12-08, License - CC BY-SA 4.0
 
@@ -592,6 +605,10 @@ void load_saved_urls(u8 saved_urls_txt_num) {
 			temp_patch_method[sizeof(saved_urls[0].patch_name)-1] = 0;
 		}
 
+		if (strcmp(temp_url,"ENTER_A_URL_HERE") == 0) {
+			continue;
+		}
+
 		strcpy(saved_urls[ready_url_i].url,temp_url);
 		strcpy(saved_urls[ready_url_i].digest,temp_digest);
 		strcpy(saved_urls[ready_url_i].patch_name,temp_patch_method);
@@ -599,22 +616,10 @@ void load_saved_urls(u8 saved_urls_txt_num) {
 
 
 		ready_url_i++;
-		if (ready_url_i >= sizeof(saved_urls) / sizeof(saved_urls[0])) {
+		if (ready_url_i >= MAX_SAVED_URLS_AMNT) {
 			break;
 		}
     }
-
-	if (ready_url_i < sizeof(saved_urls) / sizeof(saved_urls[0])) {
-		while (ready_url_i < sizeof(saved_urls) / sizeof(saved_urls[0])) {
-			struct UrlToPatchTo temp_url_2;
-			strcpy(temp_url_2.url,"ENTER_A_URL_HERE");
-			strcpy(temp_url_2.patch_name,"lbp_main");
-			strcpy(temp_url_2.digest,"");
-			memcpy(&saved_urls[ready_url_i],&temp_url_2,sizeof(struct UrlToPatchTo));
-			saved_urls_count++;
-			ready_url_i++;
-		}
-	}
 
 
 
@@ -1707,6 +1712,23 @@ char * join_password, bool allow_triangle_bypass_exit_after_done
 
 				i++;
 			}
+
+			if (current_menu == MENU_EDIT_URLS) {
+				bool max_urls_reached = saved_urls_count >= MAX_SAVED_URLS_AMNT;
+				bg_colour = (menu_arrow == i) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
+				font_colour = SELECTABLE_NORMAL_FONT_COLOUR;
+				if (max_urls_reached) {
+					font_colour = TITLE_FONT_COLOUR;
+					bg_colour = TITLE_BG_COLOUR;
+				}
+				SetFontColor(font_colour, bg_colour);
+				if (max_urls_reached) {
+
+				}
+				else {
+					DrawFormatString(x,y,"Add new URL");
+				}
+			}
 			break;
 		case MENU_URL_EDITOR:
 			DrawFormatString(x,y,"Server URL Editor");
@@ -2277,6 +2299,12 @@ int main(int argc, char *argv[]) {
 								assert(sceKernelStartThread(second_thread_id, sizeof(second_thread_args), &second_args_pointer_to_avoid_copy) == 0);
 								started_a_thread = YES_NO_GAME_POPUP_REMOVE_ALLEFRESHER;
 								break;
+							case YES_NO_GAME_POPUP_DELETE_URL:
+								remove_element(&saved_urls,selected_url_index,saved_urls_count);
+								saved_urls_count--;
+								write_saved_urls(saved_urls_txt_num);
+								selected_url_index = RESET_SELECTED_URL_INDEX;
+								break;
 							default:
 								assert(0);
 						}
@@ -2331,6 +2359,23 @@ int main(int argc, char *argv[]) {
 								saved_urls_txt_num--;
 							}
 						}
+						break;
+				}
+			}
+			if (my_btn & BTN_SQUARE) {
+				DONE_A_SWITCH;
+				switch (current_menu) {
+					case MENU_EDIT_URLS:
+						if (saved_urls_count <= 0) {
+							break;
+						}
+						if ((menu_arrow+1) > saved_urls_count) {
+							break;
+						}
+						selected_url_index = menu_arrow;
+						sprintf(error_msg,"Are you sure you want to delete URL\n%s",saved_urls[selected_url_index].url);
+						yes_no_game_popup = YES_NO_GAME_POPUP_DELETE_URL;
+						menu_arrow = 1;
 						break;
 				}
 			}
@@ -2456,9 +2501,25 @@ int main(int argc, char *argv[]) {
 						selected_url_index = (menu_arrow == selected_url_index) ? RESET_SELECTED_URL_INDEX : menu_arrow;
 						break;
 					case MENU_EDIT_URLS:
-						selected_url_index = menu_arrow;
-						current_menu = MENU_URL_EDITOR;
-
+						if ((menu_arrow+1) > saved_urls_count) {
+							if (saved_urls_count >= MAX_SAVED_URLS_AMNT) {
+								// safety check, but should never happen
+								break;
+							}
+							int new_saved_url_index = (saved_urls_count-1)+1;
+							memset(&saved_urls[new_saved_url_index],0,sizeof(saved_urls[new_saved_url_index]));
+							
+							strcpy(saved_urls[new_saved_url_index].url,"ENTER_A_URL_HERE");
+							strcpy(saved_urls[new_saved_url_index].patch_name,"lbp_main");
+							saved_urls_count++;
+							
+							selected_url_index = new_saved_url_index;
+							current_menu = MENU_URL_EDITOR;
+						}
+						else {
+							selected_url_index = menu_arrow;
+							current_menu = MENU_URL_EDITOR;
+						}
 						break;
 					case MENU_URL_EDITOR:
 						switch (menu_arrow) {

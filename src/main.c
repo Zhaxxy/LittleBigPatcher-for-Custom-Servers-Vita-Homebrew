@@ -1627,7 +1627,7 @@ char * join_password, bool allow_triangle_bypass_exit_after_done
 			bg_colour = (menu_arrow == 1) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 			font_colour = (normalise_digest_checked) ? TURNED_ON_FONT_COLOUR : SELECTABLE_NORMAL_FONT_COLOUR;
 			SetFontColor(font_colour, bg_colour);
-			DrawFormatString(x,y,"Normalise digest (select if debug build or previously patched by refresher)");
+			DrawFormatString(x,y,"Normalise digest (select if debug build or previously patched by Refresher)");
 			y += CHARACTER_HEIGHT;
 
 			bg_colour = (menu_arrow == 2) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
@@ -1749,7 +1749,7 @@ char * join_password, bool allow_triangle_bypass_exit_after_done
 			y += CHARACTER_HEIGHT;
 
 			SetFontColor(TITLE_FONT_COLOUR, TITLE_BG_COLOUR);
-			DrawFormatString(x,y,"Digest (put CustomServerDigest if refresh based server, otherwise leave empty):");
+			DrawFormatString(x,y,"Digest (put CustomServerDigest if Refresh based server, otherwise leave empty):");
 			y += CHARACTER_HEIGHT;
 
 			bg_colour = (menu_arrow == 1) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
@@ -2541,7 +2541,7 @@ int main(int argc, char *argv[]) {
 								break;
 							case 1:
 								strcpy(editing_url_text_buffer,saved_urls[selected_url_index].digest);
-								input("Enter in a digest key, put in CustomServerDigest if this is a refresh server otherwise leave empty",editing_url_text_buffer,sizeof(saved_urls[selected_url_index].digest));
+								input("Enter in a digest key, put in CustomServerDigest if this is a Refresh server otherwise leave empty",editing_url_text_buffer,sizeof(saved_urls[selected_url_index].digest));
 								remove_spaces(editing_url_text_buffer);
 
 								strcpy(saved_urls[selected_url_index].digest,editing_url_text_buffer);

@@ -592,6 +592,10 @@ void load_saved_urls(u8 saved_urls_txt_num) {
 			temp_patch_method[sizeof(saved_urls[0].patch_name)-1] = 0;
 		}
 
+		if (strcmp(temp_url,"ENTER_A_URL_HERE") == 0) {
+			continue;
+		}
+
 		strcpy(saved_urls[ready_url_i].url,temp_url);
 		strcpy(saved_urls[ready_url_i].digest,temp_digest);
 		strcpy(saved_urls[ready_url_i].patch_name,temp_patch_method);

@@ -2467,7 +2467,19 @@ int main(int argc, char *argv[]) {
 						break;
 					case MENU_EDIT_URLS:
 						if ((menu_arrow+1) > saved_urls_count) {
-
+							if (saved_urls_count >= MAX_SAVED_URLS_AMNT) {
+								// safety check, but should never happen
+								break;
+							}
+							int new_saved_url_index = (saved_urls_count-1)+1;
+							memset(&saved_urls[new_saved_url_index],0,sizeof(saved_urls[new_saved_url_index]));
+							
+							strcpy(saved_urls[new_saved_url_index].url,"ENTER_A_URL_HERE");
+							strcpy(saved_urls[new_saved_url_index].patch_name,"lbp_main");
+							saved_urls_count++;
+							
+							selected_url_index = new_saved_url_index;
+							current_menu = MENU_URL_EDITOR;
 						}
 						else {
 							selected_url_index = menu_arrow;

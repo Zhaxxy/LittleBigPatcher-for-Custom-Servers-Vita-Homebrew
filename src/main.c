@@ -604,18 +604,6 @@ void load_saved_urls(u8 saved_urls_txt_num) {
 		}
     }
 
-	if (ready_url_i < sizeof(saved_urls) / sizeof(saved_urls[0])) {
-		while (ready_url_i < sizeof(saved_urls) / sizeof(saved_urls[0])) {
-			struct UrlToPatchTo temp_url_2;
-			strcpy(temp_url_2.url,"ENTER_A_URL_HERE");
-			strcpy(temp_url_2.patch_name,"lbp_main");
-			strcpy(temp_url_2.digest,"");
-			memcpy(&saved_urls[ready_url_i],&temp_url_2,sizeof(struct UrlToPatchTo));
-			saved_urls_count++;
-			ready_url_i++;
-		}
-	}
-
 
 
 	fclose(fp);
@@ -2456,9 +2444,10 @@ int main(int argc, char *argv[]) {
 						selected_url_index = (menu_arrow == selected_url_index) ? RESET_SELECTED_URL_INDEX : menu_arrow;
 						break;
 					case MENU_EDIT_URLS:
-						selected_url_index = menu_arrow;
-						current_menu = MENU_URL_EDITOR;
-
+						if (saved_urls_count > 0) {
+							selected_url_index = menu_arrow;
+							current_menu = MENU_URL_EDITOR;
+						}
 						break;
 					case MENU_URL_EDITOR:
 						switch (menu_arrow) {

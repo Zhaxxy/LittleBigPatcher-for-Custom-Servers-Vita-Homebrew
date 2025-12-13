@@ -1605,7 +1605,7 @@ char * join_password, bool allow_triangle_bypass_exit_after_done
 
 			y += CHARACTER_HEIGHT*2;
 			y += CHARACTER_HEIGHT*2;
-			
+
 			SetFontColor(TURNED_ON_FONT_COLOUR,0);
 			DrawString(x,y,"Things will have this font colour if it is selected");
 			SetFontColor(TITLE_FONT_COLOUR,TITLE_BG_COLOUR);
@@ -1742,16 +1742,16 @@ char * join_password, bool allow_triangle_bypass_exit_after_done
 
 			DrawFormatString(x,y,"URL:");
 			y += CHARACTER_HEIGHT;
-			
+
 			bg_colour = (menu_arrow == 0) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 			DrawFormatString(x,y,"%s",saved_urls[selected_url_index].url);
 			y += CHARACTER_HEIGHT;
-			
+
 			SetFontColor(TITLE_FONT_COLOUR, TITLE_BG_COLOUR);
 			DrawFormatString(x,y,"Digest (put CustomServerDigest if refresh based server, otherwise leave empty):");
 			y += CHARACTER_HEIGHT;
-			
+
 			bg_colour = (menu_arrow == 1) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 			SetFontColor(SELECTABLE_NORMAL_FONT_COLOUR, bg_colour);
 			if (!saved_urls[selected_url_index].digest[0]) {
@@ -1767,7 +1767,7 @@ char * join_password, bool allow_triangle_bypass_exit_after_done
 				bg_colour = (menu_arrow-MINUS_MENU_ARROW_AMNT_URL_EDITOR_TO_GET_PATCH_LUA_INDEX == i) ? SELECTED_FONT_BG_COLOUR : UNSELECTED_FONT_BG_COLOUR;
 				SetFontColor(font_colour, bg_colour);
 				SetFontColor(font_colour, bg_colour);
-				
+
 				DrawFormatString(x,y,"Patch method: %s",patch_lua_names[i].patch_method);
 				y += CHARACTER_HEIGHT;
 			}
@@ -1862,7 +1862,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	mkdir(ARCHIVE_DIR, 0777);
-	
+
 	DIR *dir_with_old_saved_urls = opendir(ROOT_DIR);
 	struct dirent* reader;
 	char full_path_src[1024 + strlen(ROOT_DIR)];
@@ -1877,7 +1877,7 @@ int main(int argc, char *argv[]) {
 				snprintf(full_path_dst, sizeof(full_path_dst), "%s%s", ARCHIVE_DIR, reader->d_name);
 				rename(full_path_src,full_path_dst);
 			}
-			
+
 		}
 		closedir(dir_with_old_saved_urls);
 	}
@@ -2514,11 +2514,11 @@ int main(int argc, char *argv[]) {
 							}
 							int new_saved_url_index = (saved_urls_count-1)+1;
 							memset(&saved_urls[new_saved_url_index],0,sizeof(saved_urls[new_saved_url_index]));
-							
+
 							strcpy(saved_urls[new_saved_url_index].url,"ENTER_A_URL_HERE");
 							strcpy(saved_urls[new_saved_url_index].patch_name,"lbp_main");
 							saved_urls_count++;
-							
+
 							selected_url_index = new_saved_url_index;
 							current_menu = MENU_URL_EDITOR;
 						}

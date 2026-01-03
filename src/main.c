@@ -274,6 +274,11 @@ void load_user_join_pwd(char * pretty_user_input_join_password) {
 
 	fread(pretty_user_input_join_password,1,2048,fp);
 
+	if (strlen(pretty_user_input_join_password) < 8) {
+		memset(pretty_user_input_join_password,0,2048+1);
+		return
+	}
+
 	fclose(fp);
 }
 
@@ -2440,6 +2445,9 @@ int main(int argc, char *argv[]) {
 								break;
 							case 5:
 								input("Enter in join key (leave empty if only play alone) (follow best pwd practices!)",second_thread_args.join_password,sizeof(second_thread_args.join_password));
+								while (strlen(second_thread_args.join_password) > 0 && strlen(second_thread_args.join_password) < 8) {
+									input("ENTER AT LEAST 8 CHARACTERS",second_thread_args.join_password,sizeof(second_thread_args.join_password));
+								}
 								save_user_join_pwd(second_thread_args.join_password);
 								break;
 							default:

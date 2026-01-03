@@ -276,7 +276,7 @@ void load_user_join_pwd(char * pretty_user_input_join_password) {
 
 	if (strlen(pretty_user_input_join_password) < 8) {
 		memset(pretty_user_input_join_password,0,2048+1);
-		return
+		return;
 	}
 
 	fclose(fp);

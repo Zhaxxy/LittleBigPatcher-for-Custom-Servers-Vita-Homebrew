@@ -1,7 +1,7 @@
 #ifndef SAVE_FOLDERS_H_   /* Include guard */
 #define SAVE_FOLDERS_H_
 
-#define VERSION_NUM_STR "v3.003"
+#define VERSION_NUM_STR "v4.000"
 
 #define ROOT_DIR "ux0:/data/lbpatcher_stuff/"
 #define UPDATE_DOWNLOAD_LINK "https://github.com/Zhaxxy/LittleBigPatcher-for-Custom-Servers-Vita-Homebrew/releases/latest/download/LittleBigPatcher_for_Custom_Servers_Vita_Homebrew.vpk"
@@ -36,9 +36,10 @@
 
 #define OLD_SAVED_URLS_TXT ROOT_DIR "saved_urls.txt"
 #define OLD_VERSION_2_SAVED_URLS_STRING_STARTER "saved_urls"
+#define SAVED_URLS_TXT_STRING_STARTER "version_3_saved_urls"
 #define ARCHIVE_DIR ROOT_DIR "your_old_data/"
-#define NEW_NUM_1_SAVED_URLS_TXT ROOT_DIR "version_3_saved_urls_1.txt"
-#define SAVED_URLS_TXT_FIRST_HALF ROOT_DIR "version_3_saved_urls"
+#define NEW_NUM_1_SAVED_URLS_TXT ROOT_DIR SAVED_URLS_TXT_STRING_STARTER "_1.txt"
+#define SAVED_URLS_TXT_FIRST_HALF ROOT_DIR SAVED_URLS_TXT_STRING_STARTER
 #define SAVED_URLS_TXT_SECOND_HALF ".txt"
 
 #define OLD_VERSION_2_SAVED_URLS_TXT_FIRST_HALF ROOT_DIR OLD_VERSION_2_SAVED_URLS_STRING_STARTER
